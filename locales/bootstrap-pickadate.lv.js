@@ -1,0 +1,82 @@
+/**
+ * Bootstrap Pickadate Latvian locale.
+ */
+
+"use strict";
+
+(function(window) {
+    const locale = {
+        "code": "lv",
+        "months": [
+            "Janvāris",
+            "Februāris",
+            "Marts",
+            "Aprīlis",
+            "Maijs",
+            "Jūnijs",
+            "Jūlijs",
+            "Augusts",
+            "Septembris",
+            "Oktobris",
+            "Novembris",
+            "Decembris"
+        ],
+        "monthsShort": [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "Mai",
+            "Jūn",
+            "Jūl",
+            "Aug",
+            "Sep",
+            "Okt",
+            "Nov",
+            "Dec"
+        ],
+        "weekdays": [
+            "Svētdiena",
+            "Pirmdiena",
+            "Otrdiena",
+            "Trešdiena",
+            "Ceturtdiena",
+            "Piektdiena",
+            "Sestdiena"
+        ],
+        "weekdaysShort": [
+            "Sv",
+            "P",
+            "O",
+            "T",
+            "C",
+            "Pk",
+            "S"
+        ],
+        "today": "Šodiena",
+        "clear": "Dzēst",
+        "close": "Aizvērt",
+        "previousMonth": "Iepriekšējais mēnesis",
+        "nextMonth": "Nākamais mēnesis",
+        "previousYear": "Previous year",
+        "nextYear": "Next year",
+        "selectMonth": "Izvēlēties mēnesi",
+        "selectYear": "Izvēlēties gadu",
+        "firstDay": 1,
+        "format": "dd/mm/yyyy",
+        "longFormat": "yyyy.mm.dd. dddd",
+        "direction": "ltr"
+    };
+
+    window.bootstrapPickadateLocales = window.bootstrapPickadateLocales || {};
+    window.bootstrapPickadateLocales["lv_LV"] = locale;
+    window.bootstrapPickadateLocales["lv"] = locale;
+    if (window.bsPickadate && typeof window.bsPickadate.registerLocale === "function") {
+        window.bsPickadate.registerLocale("lv_LV", locale);
+    }
+    if (window.bsPickadate && typeof window.bsPickadate.registerLocale === "function") {
+        window.bsPickadate.registerLocale("lv", locale);
+    }
+})(window);
+
+// END OF FILE
