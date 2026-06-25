@@ -22,6 +22,10 @@ input.bootstrap-pickadate {
     max-width: calc(100vw - 1rem);
     position: absolute;
     z-index: 1080;
+
+    .card-body {
+        overflow-x: auto;
+    }
 }
 
 .bootstrap-pickadate-dropdown.show {
@@ -29,15 +33,28 @@ input.bootstrap-pickadate {
 }
 
 .bootstrap-pickadate-calendar {
-    min-width: 18.75rem;
-}
-
-.bootstrap-pickadate-header .bootstrap-pickadate-month {
     min-width: 0;
 }
 
-.bootstrap-pickadate-header .bootstrap-pickadate-year {
-    max-width: 6rem;
+.bootstrap-pickadate-months {
+    align-items: flex-start;
+    width: max-content;
+}
+
+.bootstrap-pickadate-month-panel {
+    flex: 0 0 auto;
+    width: max-content;
+}
+
+.bootstrap-pickadate-header {
+
+    .bootstrap-pickadate-month {
+        min-width: 0;
+    }
+
+    .bootstrap-pickadate-year {
+        max-width: 6rem;
+    }
 }
 
 .bootstrap-pickadate-nav {
@@ -45,27 +62,67 @@ input.bootstrap-pickadate {
 }
 
 .bootstrap-pickadate-table {
+    border-collapse: separate;
+    border-spacing: 0.125rem;
+    margin-left: auto;
+    margin-right: auto;
     table-layout: fixed;
-}
+    width: auto;
 
-.bootstrap-pickadate-table th,
-.bootstrap-pickadate-table td {
-    border-bottom: 0;
-    width: 14.285714%;
+    th,
+    td {
+        border-bottom: 0;
+        height: 2.25rem;
+        padding: 0 !important;
+        text-align: center;
+        vertical-align: middle;
+        width: 2.25rem;
+    }
 }
 
 .bootstrap-pickadate-day {
+    align-items: center;
+    display: inline-flex;
     height: 2.25rem;
+    justify-content: center;
     line-height: 1;
-    margin: 0.0625rem;
+    margin: 0;
     padding: 0;
     width: 2.25rem;
 }
 
+.bootstrap-pickadate-in-range {
+    --bs-btn-color: var(--bs-white);
+    --bs-btn-bg: var(--bs-primary);
+    --bs-btn-border-color: var(--bs-primary);
+    --bs-btn-hover-color: var(--bs-white);
+    --bs-btn-hover-bg: var(--bs-primary);
+    --bs-btn-hover-border-color: var(--bs-primary);
+    --bs-btn-active-color: var(--bs-white);
+    --bs-btn-active-bg: var(--bs-primary);
+    --bs-btn-active-border-color: var(--bs-primary);
+}
+
+.bootstrap-pickadate-preview-range {
+    opacity: 0.82;
+}
+
 .bootstrap-pickadate-other-month {
     opacity: 0.55;
+
+    &.bootstrap-pickadate-in-range {
+        opacity: 0.75;
+    }
+}
+
+.bootstrap-pickadate-hidden-overlap {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
 }
 
 .bootstrap-pickadate-footer .btn {
     white-space: nowrap;
 }
+
+// END OF FILE
