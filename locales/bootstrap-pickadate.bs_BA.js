@@ -1,0 +1,82 @@
+/**
+ * Bootstrap Pickadate Bosnian locale.
+ */
+
+"use strict";
+
+(function(window) {
+    const locale = {
+        "code": "bs_BA",
+        "months": [
+            "januar",
+            "februar",
+            "mart",
+            "april",
+            "maj",
+            "juni",
+            "juli",
+            "august",
+            "septembar",
+            "oktobar",
+            "novembar",
+            "decembar"
+        ],
+        "monthsShort": [
+            "jan",
+            "feb",
+            "mar",
+            "apr",
+            "maj",
+            "jun",
+            "jul",
+            "aug",
+            "sep",
+            "okt",
+            "nov",
+            "dec"
+        ],
+        "weekdays": [
+            "nedjelja",
+            "ponedjeljak",
+            "utorak",
+            "srijeda",
+            "cetvrtak",
+            "petak",
+            "subota"
+        ],
+        "weekdaysShort": [
+            "ne",
+            "po",
+            "ut",
+            "sr",
+            "če",
+            "pe",
+            "su"
+        ],
+        "today": "danas",
+        "clear": "izbrisati",
+        "close": "Close",
+        "previousMonth": "Previous month",
+        "nextMonth": "Next month",
+        "previousYear": "Previous year",
+        "nextYear": "Next year",
+        "selectMonth": "Select a month",
+        "selectYear": "Select a year",
+        "firstDay": 1,
+        "format": "dd/mm/yyyy",
+        "longFormat": "dd. mmmm yyyy.",
+        "direction": "ltr"
+    };
+
+    window.bootstrapPickadateLocales = window.bootstrapPickadateLocales || {};
+    window.bootstrapPickadateLocales["bs_BA"] = locale;
+    window.bootstrapPickadateLocales["bs"] = locale;
+    if (window.bsPickadate && typeof window.bsPickadate.registerLocale === "function") {
+        window.bsPickadate.registerLocale("bs_BA", locale);
+    }
+    if (window.bsPickadate && typeof window.bsPickadate.registerLocale === "function") {
+        window.bsPickadate.registerLocale("bs", locale);
+    }
+})(window);
+
+// END OF FILE

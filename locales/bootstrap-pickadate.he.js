@@ -1,0 +1,82 @@
+/**
+ * Bootstrap Pickadate Hebrew locale.
+ */
+
+"use strict";
+
+(function(window) {
+    const locale = {
+        "code": "he",
+        "months": [
+            "ינואר",
+            "פברואר",
+            "מרץ",
+            "אפריל",
+            "מאי",
+            "יוני",
+            "יולי",
+            "אוגוסט",
+            "ספטמבר",
+            "אוקטובר",
+            "נובמבר",
+            "דצמבר"
+        ],
+        "monthsShort": [
+            "ינו",
+            "פבר",
+            "מרץ",
+            "אפר",
+            "מאי",
+            "יונ",
+            "יול",
+            "אוג",
+            "ספט",
+            "אוק",
+            "נוב",
+            "דצמ"
+        ],
+        "weekdays": [
+            "יום ראשון",
+            "יום שני",
+            "יום שלישי",
+            "יום רביעי",
+            "יום חמישי",
+            "יום ששי",
+            "יום שבת"
+        ],
+        "weekdaysShort": [
+            "א",
+            "ב",
+            "ג",
+            "ד",
+            "ה",
+            "ו",
+            "ש"
+        ],
+        "today": "היום",
+        "clear": "למחוק",
+        "close": "Close",
+        "previousMonth": "Previous month",
+        "nextMonth": "Next month",
+        "previousYear": "Previous year",
+        "nextYear": "Next year",
+        "selectMonth": "Select a month",
+        "selectYear": "Select a year",
+        "firstDay": 1,
+        "format": "dd/mm/yyyy",
+        "longFormat": "yyyy mmmmב d dddd",
+        "direction": "rtl"
+    };
+
+    window.bootstrapPickadateLocales = window.bootstrapPickadateLocales || {};
+    window.bootstrapPickadateLocales["he_IL"] = locale;
+    window.bootstrapPickadateLocales["he"] = locale;
+    if (window.bsPickadate && typeof window.bsPickadate.registerLocale === "function") {
+        window.bsPickadate.registerLocale("he_IL", locale);
+    }
+    if (window.bsPickadate && typeof window.bsPickadate.registerLocale === "function") {
+        window.bsPickadate.registerLocale("he", locale);
+    }
+})(window);
+
+// END OF FILE

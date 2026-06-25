@@ -1,0 +1,82 @@
+/**
+ * Bootstrap Pickadate Hungarian locale.
+ */
+
+"use strict";
+
+(function(window) {
+    const locale = {
+        "code": "hu",
+        "months": [
+            "január",
+            "február",
+            "március",
+            "április",
+            "május",
+            "június",
+            "július",
+            "augusztus",
+            "szeptember",
+            "október",
+            "november",
+            "december"
+        ],
+        "monthsShort": [
+            "jan",
+            "febr",
+            "márc",
+            "ápr",
+            "máj",
+            "jún",
+            "júl",
+            "aug",
+            "szept",
+            "okt",
+            "nov",
+            "dec"
+        ],
+        "weekdays": [
+            "vasárnap",
+            "hétfő",
+            "kedd",
+            "szerda",
+            "csütörtök",
+            "péntek",
+            "szombat"
+        ],
+        "weekdaysShort": [
+            "V",
+            "H",
+            "K",
+            "Sze",
+            "CS",
+            "P",
+            "Szo"
+        ],
+        "today": "Ma",
+        "clear": "Törlés",
+        "close": "Bezárás",
+        "previousMonth": "Previous month",
+        "nextMonth": "Next month",
+        "previousYear": "Previous year",
+        "nextYear": "Next year",
+        "selectMonth": "Select a month",
+        "selectYear": "Select a year",
+        "firstDay": 1,
+        "format": "dd/mm/yyyy",
+        "longFormat": "yyyy. mmmm dd.",
+        "direction": "ltr"
+    };
+
+    window.bootstrapPickadateLocales = window.bootstrapPickadateLocales || {};
+    window.bootstrapPickadateLocales["hu_HU"] = locale;
+    window.bootstrapPickadateLocales["hu"] = locale;
+    if (window.bsPickadate && typeof window.bsPickadate.registerLocale === "function") {
+        window.bsPickadate.registerLocale("hu_HU", locale);
+    }
+    if (window.bsPickadate && typeof window.bsPickadate.registerLocale === "function") {
+        window.bsPickadate.registerLocale("hu", locale);
+    }
+})(window);
+
+// END OF FILE
