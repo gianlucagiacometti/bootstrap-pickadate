@@ -390,6 +390,16 @@
         });
     }
 
+    function formatMonthSelectOption(index, locale, useFullLabel) {
+        const usedLocale = locale || window.bootstrapPickadateLocales.en;
+
+        if (useFullLabel) {
+            return usedLocale.months[index];
+        }
+
+        return formatMonthSelectLabel(index, usedLocale);
+    }
+
     function createElement(tagName, className, attributes, text) {
         const element = document.createElement(tagName);
 
@@ -759,9 +769,19 @@
             const footer = createElement("div", "bootstrap-pickadate-footer d-flex justify-content-between gap-1 mt-2");
 
             dropdown.dataset.bsPickadateOwner = this.inputId;
+            monthSelect.addEventListener("pointerdown", function() {
+                this.populateMonthSelect(true);
+            }.bind(this));
+            monthSelect.addEventListener("focus", function() {
+                this.populateMonthSelect(true);
+            }.bind(this));
+            monthSelect.addEventListener("blur", function() {
+                this.populateMonthSelect(false);
+            }.bind(this));
             monthSelect.addEventListener("change", function(event) {
                 event.preventDefault();
                 this.setViewMonth(parseInt(monthSelect.value, 10));
+                this.populateMonthSelect(false);
             }.bind(this));
             yearSelect.addEventListener("change", function(event) {
                 event.preventDefault();
@@ -947,21 +967,30 @@
                 }
             }.bind(this));
 
-            monthSelect.innerHTML = "";
             monthSelect.setAttribute("aria-label", this.locale.selectMonth || "Select a month");
-
-            this.locale.months.forEach(function(month, index) {
-                monthSelect.appendChild(createElement("option", "", {
-                    value: String(index),
-                    title: month
-                }, formatMonthSelectLabel(index, this.locale)));
-            }.bind(this));
+            this.populateMonthSelect(false);
 
             yearSelect.setAttribute("aria-label", this.locale.selectYear || "Select a year");
             this.updateNavigationLabels();
             this.updateFooterLabels();
         }
 
+
+        populateMonthSelect(useFullLabels) {
+            const monthSelect = this.elements.monthSelect;
+            const value = monthSelect.value || String(this.viewDate.getMonth());
+
+            monthSelect.innerHTML = "";
+
+            this.locale.months.forEach(function(month, index) {
+                monthSelect.appendChild(createElement("option", "", {
+                    value: String(index),
+                    title: month
+                }, formatMonthSelectOption(index, this.locale, useFullLabels)));
+            }.bind(this));
+
+            monthSelect.value = value;
+        }
 
         updateNavigationLabels() {
             const buttons = this.elements.header.querySelectorAll("[data-bs-pickadate-navigation]");
