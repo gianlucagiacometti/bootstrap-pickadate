@@ -819,7 +819,7 @@
         }
 
         createCalendarPanel(offset) {
-            const panel = createElement("div", "bootstrap-pickadate-month-panel flex-fill");
+            const panel = createElement("div", "bootstrap-pickadate-month-panel");
             const title = createElement("div", this.isIntervalMode() ? "bootstrap-pickadate-month-title text-center fw-semibold small mb-1" : "bootstrap-pickadate-month-title text-center fw-semibold small mb-1 d-none");
             const table = createElement("table", "table table-sm mb-0 bootstrap-pickadate-table");
             const thead = createElement("thead");
@@ -1137,11 +1137,11 @@
             if (this.destroyed || this.input.disabled || this.input.hasAttribute("disabled")) {
                 return;
             }
-
+        
             this.isOpen = true;
             this.updateCalendar();
-            this.positionDropdown();
             this.elements.dropdown.classList.add("show");
+            this.positionDropdown();
             document.addEventListener("mousedown", this.bound.documentMouseDown);
             window.addEventListener("resize", this.bound.resize);
             window.addEventListener("scroll", this.bound.scroll, true);
@@ -1169,7 +1169,7 @@
             const groupRect = group ? group.getBoundingClientRect() : rect;
             const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
             const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-            const defaultWidth = this.isIntervalMode() ? "min(43rem, calc(100vw - 1rem))" : "22rem";
+            const defaultWidth = this.isIntervalMode() ? "max-content" : "22rem";
             const dropdownWidth = this.options.dropdownWidth || defaultWidth;
 
             this.elements.dropdown.style.width = dropdownWidth;
