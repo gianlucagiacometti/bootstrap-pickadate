@@ -10,23 +10,36 @@ It is intentionally limited to dates. It does not provide time picking, recurren
 - Bootstrap Icons ^1 for the default navigation icons
 - Modern browsers with ECMAScript 2017 support
 
-## Files
 
-```text
-bootstrap-pickadate.css
-bootstrap-pickadate.min.css
-bootstrap-pickadate.less
-bootstrap-pickadate.js
-bootstrap-pickadate.min.js
-locales/bootstrap-pickadate.en.js
-locales/bootstrap-pickadate.it.js
-locales/bootstrap-pickadate.it_IT.js
-...
+## Optional jQuery integration
+
+Bootstrap Pickadate is a plain JavaScript component and does not require jQuery.
+
+If you want a jQuery-style application layer, `gianlucagiacometti/web-toolbox` provides `jquery-bootstrap-pickadate`. The wrapper keeps Bootstrap Pickadate as the underlying component and adds jQuery initialisation plus method-style calls.
+
+```bash
+composer require gianlucagiacometti/web-toolbox
 ```
 
-There is no `/src` and no `/dist`. The readable files are the source of truth. The `.min` files are generated from them.
+Suggested script order:
 
-## Script order
+```html
+<link rel="stylesheet" href="/assets/bootstrap-pickadate/bootstrap-pickadate.css">
+<script src="/assets/jquery/jquery.min.js"></script>
+<script src="/assets/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/bootstrap-pickadate/bootstrap-pickadate.js"></script>
+<script src="/assets/bootstrap-pickadate/locales/bootstrap-pickadate.it.js"></script>
+<script src="/assets/jquery-bootstrap-pickadate/jquery-bootstrap-pickadate.js"></script>
+```
+
+```js
+$("input.bootstrap-pickadate").jqueryBootstrapPickadate({
+    locale: "current"
+});
+```
+
+
+## Usage
 
 ```html
 <link rel="stylesheet" href="/assets/bootstrap-pickadate/bootstrap-pickadate.css">
@@ -34,10 +47,6 @@ There is no `/src` and no `/dist`. The readable files are the source of truth. T
 <script src="/assets/bootstrap-pickadate/bootstrap-pickadate.js"></script>
 <script src="/assets/bootstrap-pickadate/locales/bootstrap-pickadate.it.js"></script>
 ```
-
-The component itself does not require jQuery.
-
-## Basic usage
 
 ```html
 <div class="input-group">
