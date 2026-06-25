@@ -37,9 +37,10 @@ input.bootstrap-pickadate {
   width: max-content;
 }
 .bootstrap-pickadate-header .bootstrap-pickadate-month {
-  flex: 0 0 7rem;
-  min-width: 0;
-  width: 7rem;
+  flex: 0 0 5rem;
+  max-width: 5rem;
+  min-width: 5rem;
+  width: 5rem;
 }
 .bootstrap-pickadate-header .bootstrap-pickadate-year {
   flex: 0 0 6rem;
