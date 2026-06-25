@@ -1,0 +1,24 @@
+{
+    "name": "gianlucagiacometti/bootstrap-pickadate",
+    "description": "Date picker extension for the Bootstrap date input element",
+    "keywords": [
+        "bootstrap",
+        "date",
+        "datepicker",
+        "pickadate"
+    ],
+    "homepage": "https://github.com/gianlucagiacometti/bootstrap-pickadate/",
+    "license": "MIT",
+    "type": "bootstrap-extension",
+    "authors": [
+        {
+            "name": "Gianluca Giacometti",
+            "email": "php@gianlucagiacometti.it",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "twbs/bootstrap": "^5.3",
+        "twbs/bootstrap-icons": "^1"
+    }
+}
