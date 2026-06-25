@@ -1,5 +1,5 @@
 /**
- * Bootstrap Pickadate stylesheet.
+ * Bootstrap Pickadate LESS source.
  */
 @keyframes bootstrapPickadateInserted {
   from {
@@ -100,5 +100,3 @@ input.bootstrap-pickadate {
 .bootstrap-pickadate-footer .btn {
   white-space: nowrap;
 }
-
-/* END OF FILE */
