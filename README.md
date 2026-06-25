@@ -6,7 +6,7 @@ It is intentionally limited to dates. It does not provide time picking, recurren
 
 ## Requirements
 
-- Bootstrap >= 5.3
+- Bootstrap 5.3.x
 - Bootstrap Icons ^1 for the default navigation icons
 
 
