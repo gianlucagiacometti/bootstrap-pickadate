@@ -17,16 +17,22 @@ input.bootstrap-pickadate {
   display: none;
   max-width: calc(100vw - 1rem);
   position: absolute;
+  width: max-content;
   z-index: 1080;
+}
+.bootstrap-pickadate-dropdown .card {
+  width: max-content;
 }
 .bootstrap-pickadate-dropdown .card-body {
   overflow-x: auto;
+  width: max-content;
 }
 .bootstrap-pickadate-dropdown.show {
   display: block;
 }
 .bootstrap-pickadate-calendar {
   min-width: 0;
+  width: max-content;
 }
 .bootstrap-pickadate-months {
   align-items: flex-start;
