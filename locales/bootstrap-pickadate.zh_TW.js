@@ -35,6 +35,7 @@
             "十一",
             "十二"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "星期日",
             "星期一",

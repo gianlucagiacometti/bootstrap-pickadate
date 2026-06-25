@@ -6,7 +6,7 @@
 
 (function(window) {
     const locale = {
-        "code": "km",
+        "code": "km_KH",
         "months": [
             "មករា",
             "កុម្ភៈ",

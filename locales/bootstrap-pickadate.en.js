@@ -35,6 +35,7 @@
             "Nov",
             "Dec"
         ],
+        "monthShortFormat": "mmm mm",
         "weekdays": [
             "Sunday",
             "Monday",

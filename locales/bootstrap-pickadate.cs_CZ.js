@@ -35,6 +35,7 @@
             "lis",
             "pro"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "neděle",
             "pondělí",

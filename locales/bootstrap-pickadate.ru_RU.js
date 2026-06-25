@@ -35,6 +35,7 @@
             "ноя",
             "дек"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "воскресенье",
             "понедельник",

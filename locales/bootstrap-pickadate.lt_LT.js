@@ -35,6 +35,7 @@
             "Lap",
             "Grd"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "Sekmadienis",
             "Pirmadienis",

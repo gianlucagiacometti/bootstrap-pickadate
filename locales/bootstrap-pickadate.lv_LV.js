@@ -35,6 +35,7 @@
             "Nov",
             "Dec"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "Svētdiena",
             "Pirmdiena",

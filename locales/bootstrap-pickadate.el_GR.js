@@ -35,6 +35,7 @@
             "Νοε",
             "Δεκ"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "Κυριακή",
             "Δευτέρα",

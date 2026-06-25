@@ -35,6 +35,7 @@
             "лис",
             "гру"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "неділя",
             "понеділок",

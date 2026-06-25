@@ -35,6 +35,7 @@
             "نوفمبر",
             "ديسمبر"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "الاحد",
             "الاثنين",

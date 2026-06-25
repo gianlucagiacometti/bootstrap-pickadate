@@ -35,6 +35,7 @@
             "нов.",
             "дец."
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "недеља",
             "понедељак",

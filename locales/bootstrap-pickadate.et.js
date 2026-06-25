@@ -35,6 +35,7 @@
             "nov",
             "dets"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "pühapäev",
             "esmaspäev",

@@ -35,6 +35,7 @@
             "marras",
             "joulu"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "sunnuntai",
             "maanantai",

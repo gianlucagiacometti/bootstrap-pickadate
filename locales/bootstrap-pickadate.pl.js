@@ -35,6 +35,7 @@
             "lis",
             "gru"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "niedziela",
             "poniedziałek",

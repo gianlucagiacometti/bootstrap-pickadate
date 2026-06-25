@@ -35,6 +35,7 @@
             "Nov",
             "Des"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "Minggu",
             "Senin",

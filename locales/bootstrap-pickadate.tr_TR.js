@@ -35,6 +35,7 @@
             "Kas",
             "Ara"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "Pazar",
             "Pazartesi",

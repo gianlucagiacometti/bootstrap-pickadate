@@ -35,6 +35,7 @@
             "nov.",
             "dec."
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "nedelja",
             "ponedeljak",

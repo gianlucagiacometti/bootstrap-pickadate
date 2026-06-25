@@ -35,6 +35,7 @@
             "नोभे",
             "डिसे"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "सोमबार",
             "मङ्लबार",

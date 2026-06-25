@@ -1,5 +1,7 @@
 /**
  * Bootstrap Pickadate date picker component.
+ *
+ * Fast cached-DOM refactor.
  */
 
 "use strict";
@@ -8,6 +10,8 @@
     const COMPONENT_PROPERTY = "bsPickadate";
     const DEFAULT_LOCALE = "en";
     const INSERTED_ANIMATION = "bootstrapPickadateInserted";
+    const DAY_COUNT = 42;
+    const INTERVAL_MODE = "interval";
 
     if (!window || !document) {
         return;
@@ -76,6 +80,7 @@
         selectYear: "Select a year",
         firstDay: 1,
         format: "dd/mm/yyyy",
+        monthShortFormat: "mmm mm",
         direction: "ltr"
     };
 
@@ -86,6 +91,10 @@
         defaultLocale: DEFAULT_LOCALE,
         format: "",
         hiddenTarget: "",
+        hiddenStartTarget: "",
+        hiddenEndTarget: "",
+        mode: "single",
+        intervalSeparator: " - ",
         min: "",
         max: "",
         rangeRole: "",
@@ -253,7 +262,6 @@
         const parts = value.split("-").map(function(part) {
             return parseInt(part, 10);
         });
-
         const date = new Date(parts[0], parts[1] - 1, parts[2]);
 
         if (date.getFullYear() !== parts[0] || date.getMonth() !== parts[1] - 1 || date.getDate() !== parts[2]) {
@@ -367,6 +375,21 @@
         });
     }
 
+    function formatMonthSelectLabel(index, locale) {
+        const usedLocale = locale || window.bootstrapPickadateLocales.en;
+        const format = usedLocale.monthShortFormat || "mm mmm";
+        const replacements = {
+            mmmm: usedLocale.months[index],
+            mmm: usedLocale.monthsShort[index],
+            mm: pad(index + 1),
+            m: String(index + 1)
+        };
+
+        return format.replace(/mmmm|mmm|mm|m/g, function(token) {
+            return replacements[token];
+        });
+    }
+
     function createElement(tagName, className, attributes, text) {
         const element = document.createElement(tagName);
 
@@ -470,6 +493,7 @@
             this.options.autoClose = toBoolean(this.options.autoClose, true);
             this.options.readonly = toBoolean(this.options.readonly, false);
             this.options.yearRange = normaliseYearRange(this.options.yearRange);
+            this.options.mode = this.options.mode === INTERVAL_MODE ? INTERVAL_MODE : "single";
             this.localeCode = this.resolveLocaleCode(this.options.locale, this.options.defaultLocale);
             this.locale = getLocale(this.localeCode, this.options.defaultLocale);
             this.baseMinDate = isoToDate(this.options.min);
@@ -477,17 +501,26 @@
             this.runtimeMinDate = null;
             this.runtimeMaxDate = null;
             this.selectedDate = null;
+            this.intervalStartDate = null;
+            this.intervalEndDate = null;
+            this.intervalHoverDate = null;
             this.viewDate = startOfDay(new Date());
-            this.dropdown = null;
+            this.lastValue = "";
             this.isOpen = false;
             this.silent = false;
             this.destroyed = false;
             this.bound = {};
+            this.elements = {};
+            this.dayButtons = [];
+            this.months = [];
             this.hiddenInput = this.findHiddenInput();
+            this.hiddenStartInput = this.findTargetInput(this.options.hiddenStartTarget);
+            this.hiddenEndInput = this.findTargetInput(this.options.hiddenEndTarget);
 
-            this.bind();
+            this.bindInput();
             this.restoreInitialValue();
-            this.syncInput();
+            this.syncInput(false);
+            this.buildDropdown();
             this.register();
         }
 
@@ -499,6 +532,10 @@
                 defaultLocale: dataset.bsPickadateDefaultLocale,
                 format: dataset.bsPickadateFormat,
                 hiddenTarget: dataset.bsPickadateHiddenTarget,
+                hiddenStartTarget: dataset.bsPickadateHiddenStartTarget,
+                hiddenEndTarget: dataset.bsPickadateHiddenEndTarget,
+                mode: dataset.bsPickadateMode,
+                intervalSeparator: dataset.bsPickadateIntervalSeparator,
                 min: dataset.bsPickadateMin,
                 max: dataset.bsPickadateMax,
                 rangeRole: dataset.bsPickadateRangeRole,
@@ -535,6 +572,51 @@
             return hidden;
         }
 
+        findTargetInput(selector) {
+            if (!selector) {
+                return null;
+            }
+
+            const target = document.querySelector(selector);
+
+            if (!target || target.tagName.toLowerCase() !== "input") {
+                return null;
+            }
+
+            return target;
+        }
+
+        isIntervalMode() {
+            return this.options.mode === INTERVAL_MODE;
+        }
+
+        getNextMonth(date) {
+            return new Date(date.getFullYear(), date.getMonth() + 1, 1);
+        }
+
+        getIntervalValue() {
+            const start = dateToIso(this.intervalStartDate);
+            const end = dateToIso(this.intervalEndDate);
+
+            if (!start && !end) {
+                return "";
+            }
+
+            return start + "/" + end;
+        }
+
+        parseIntervalValue(value) {
+            if (!value) {
+                return [null, null];
+            }
+
+            const parts = String(value).split(/[\/|,]/).map(function(part) {
+                return part.trim();
+            });
+
+            return [isoToDate(parts[0] || ""), isoToDate(parts[1] || "")];
+        }
+
         register() {
             this.input[COMPONENT_PROPERTY] = this;
             this.input.dataset.bsPickadateInitialised = "true";
@@ -554,6 +636,38 @@
         }
 
         restoreInitialValue() {
+            if (this.isIntervalMode()) {
+                const hiddenStartValue = this.hiddenStartInput ? this.hiddenStartInput.value : "";
+                const hiddenEndValue = this.hiddenEndInput ? this.hiddenEndInput.value : "";
+                const hiddenValue = this.hiddenInput ? this.hiddenInput.value : "";
+                const dataValue = this.input.dataset.bsPickadateValue || "";
+                let startDate = isoToDate(hiddenStartValue);
+                let endDate = isoToDate(hiddenEndValue);
+
+                if (!startDate && !endDate) {
+                    const parsed = this.parseIntervalValue(hiddenValue || dataValue);
+                    startDate = parsed[0];
+                    endDate = parsed[1];
+                }
+
+                if (startDate && this.isSelectable(startDate)) {
+                    this.intervalStartDate = startDate;
+                    this.viewDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+                }
+
+                if (endDate && this.isSelectable(endDate)) {
+                    this.intervalEndDate = endDate;
+                }
+
+                if (this.intervalStartDate && this.intervalEndDate && compareDates(this.intervalEndDate, this.intervalStartDate) < 0) {
+                    const temporary = this.intervalStartDate;
+                    this.intervalStartDate = this.intervalEndDate;
+                    this.intervalEndDate = temporary;
+                }
+
+                return;
+            }
+
             const hiddenValue = this.hiddenInput ? this.hiddenInput.value : "";
             const dataValue = this.input.dataset.bsPickadateValue || "";
             const visibleValue = this.input.value || "";
@@ -565,7 +679,8 @@
             }
         }
 
-        bind() {
+
+        bindInput() {
             this.bound.focus = this.open.bind(this);
             this.bound.click = this.open.bind(this);
             this.bound.change = this.handleInputChange.bind(this);
@@ -607,6 +722,7 @@
 
                 const handler = function(event) {
                     event.preventDefault();
+                    event.stopPropagation();
 
                     if (button.hasAttribute("data-bs-pickadate-clear")) {
                         this.clear();
@@ -625,8 +741,267 @@
             }.bind(this));
         }
 
+        buildDropdown() {
+            const dropdown = createElement("div", "bootstrap-pickadate-dropdown card shadow", {
+                role: "dialog",
+                "aria-modal": "false",
+                "aria-label": "Date picker"
+            });
+            const body = createElement("div", "card-body p-2 bootstrap-pickadate-calendar");
+            const header = createElement("div", "bootstrap-pickadate-header d-flex align-items-center gap-1 mb-2");
+            const previousYear = this.createNavigationButton("bi-chevron-double-left", "previousYear", -12);
+            const previousMonth = this.createNavigationButton("bi-chevron-left", "previousMonth", -1);
+            const monthSelect = createElement("select", "form-select form-select-sm bootstrap-pickadate-month");
+            const yearSelect = createElement("select", "form-select form-select-sm bootstrap-pickadate-year");
+            const nextMonth = this.createNavigationButton("bi-chevron-right", "nextMonth", 1);
+            const nextYear = this.createNavigationButton("bi-chevron-double-right", "nextYear", 12);
+            const monthsWrapper = createElement("div", this.isIntervalMode() ? "bootstrap-pickadate-months d-flex flex-column flex-md-row gap-2" : "bootstrap-pickadate-months");
+            const footer = createElement("div", "bootstrap-pickadate-footer d-flex justify-content-between gap-1 mt-2");
+
+            dropdown.dataset.bsPickadateOwner = this.inputId;
+            monthSelect.addEventListener("change", function(event) {
+                event.preventDefault();
+                this.setViewMonth(parseInt(monthSelect.value, 10));
+            }.bind(this));
+            yearSelect.addEventListener("change", function(event) {
+                event.preventDefault();
+                this.setViewYear(parseInt(yearSelect.value, 10));
+            }.bind(this));
+
+            header.appendChild(previousYear);
+            header.appendChild(previousMonth);
+            header.appendChild(monthSelect);
+            header.appendChild(yearSelect);
+            header.appendChild(nextMonth);
+            header.appendChild(nextYear);
+            body.appendChild(header);
+            body.appendChild(monthsWrapper);
+            body.appendChild(footer);
+            dropdown.appendChild(body);
+            document.body.appendChild(dropdown);
+
+            this.elements.dropdown = dropdown;
+            this.elements.body = body;
+            this.elements.header = header;
+            this.elements.monthSelect = monthSelect;
+            this.elements.yearSelect = yearSelect;
+            this.elements.monthsWrapper = monthsWrapper;
+            this.elements.footer = footer;
+            this.createCalendarPanel(0);
+
+            if (this.isIntervalMode()) {
+                this.createCalendarPanel(1);
+            }
+
+            this.buildFooter();
+            this.updateLocaleText();
+            this.updateCalendar();
+        }
+
+        createCalendarPanel(offset) {
+            const panel = createElement("div", "bootstrap-pickadate-month-panel flex-fill");
+            const title = createElement("div", this.isIntervalMode() ? "bootstrap-pickadate-month-title text-center fw-semibold small mb-1" : "bootstrap-pickadate-month-title text-center fw-semibold small mb-1 d-none");
+            const table = createElement("table", "table table-sm mb-0 bootstrap-pickadate-table");
+            const thead = createElement("thead");
+            const tbody = createElement("tbody");
+            const weekdaysRow = createElement("tr");
+            const buttons = [];
+
+            thead.appendChild(weekdaysRow);
+
+            for (let row = 0; row < 6; row++) {
+                const tr = createElement("tr");
+
+                for (let col = 0; col < 7; col++) {
+                    const td = createElement("td", "text-center p-0");
+                    const button = createElement("button", "btn btn-sm bootstrap-pickadate-day", {
+                        type: "button"
+                    });
+
+                    button.addEventListener("click", function(event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        this.handleDayClick(button);
+                    }.bind(this));
+
+                    button.addEventListener("mouseenter", function() {
+                        this.handleDayHover(button);
+                    }.bind(this));
+
+                    button.addEventListener("mouseleave", function() {
+                        this.handleDayHover(null);
+                    }.bind(this));
+                    buttons.push(button);
+                    this.dayButtons.push(button);
+                    td.appendChild(button);
+                    tr.appendChild(td);
+                }
+
+                tbody.appendChild(tr);
+            }
+
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            panel.appendChild(title);
+            panel.appendChild(table);
+            this.elements.monthsWrapper.appendChild(panel);
+            this.months.push({
+                offset: offset,
+                panel: panel,
+                title: title,
+                weekdaysRow: weekdaysRow,
+                buttons: buttons
+            });
+        }
+
+
+        createNavigationButton(iconName, labelKey, deltaMonths) {
+            const label = this.locale[labelKey] || labelKey;
+            const button = createElement("button", "btn btn-sm btn-outline-secondary bootstrap-pickadate-nav", {
+                type: "button",
+                "aria-label": label,
+                title: label,
+                "data-bs-pickadate-navigation": String(deltaMonths)
+            });
+            const icon = createElement("i", "bi " + iconName);
+
+            button.appendChild(icon);
+            button.addEventListener("click", function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                this.moveMonth(deltaMonths);
+            }.bind(this));
+
+            return button;
+        }
+
+        buildFooter() {
+            const footer = this.elements.footer;
+
+            footer.innerHTML = "";
+
+            if (this.options.todayButton) {
+                const todayButton = createElement("button", "btn btn-sm btn-outline-secondary", {
+                    type: "button",
+                    "data-bs-pickadate-action": "today"
+                }, this.locale.today || "Today");
+
+                todayButton.addEventListener("click", function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.today();
+                }.bind(this));
+                footer.appendChild(todayButton);
+                this.elements.todayButton = todayButton;
+            }
+
+            footer.appendChild(createElement("span", "flex-grow-1"));
+
+            if (this.options.clearButton) {
+                const clearButton = createElement("button", "btn btn-sm btn-outline-secondary", {
+                    type: "button",
+                    "data-bs-pickadate-action": "clear"
+                }, this.locale.clear || "Clear");
+
+                clearButton.addEventListener("click", function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.clear();
+                }.bind(this));
+                footer.appendChild(clearButton);
+                this.elements.clearButton = clearButton;
+            }
+
+            if (this.options.closeButton) {
+                const closeButton = createElement("button", "btn btn-sm btn-outline-secondary", {
+                    type: "button",
+                    "data-bs-pickadate-action": "close"
+                }, this.locale.close || "Close");
+
+                closeButton.addEventListener("click", function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.close();
+                }.bind(this));
+                footer.appendChild(closeButton);
+                this.elements.closeButton = closeButton;
+            }
+        }
+
+        updateLocaleText() {
+            const firstDay = parseInt(this.locale.firstDay || 0, 10);
+            const monthSelect = this.elements.monthSelect;
+            const yearSelect = this.elements.yearSelect;
+
+            this.months.forEach(function(month) {
+                month.weekdaysRow.innerHTML = "";
+
+                for (let index = 0; index < 7; index++) {
+                    const dayIndex = (firstDay + index) % 7;
+                    const header = createElement("th", "text-center fw-normal", {
+                        scope: "col",
+                        title: this.locale.weekdays[dayIndex]
+                    }, this.locale.weekdaysShort[dayIndex]);
+
+                    month.weekdaysRow.appendChild(header);
+                }
+            }.bind(this));
+
+            monthSelect.innerHTML = "";
+            monthSelect.setAttribute("aria-label", this.locale.selectMonth || "Select a month");
+
+            this.locale.months.forEach(function(month, index) {
+                monthSelect.appendChild(createElement("option", "", {
+                    value: String(index),
+                    title: month
+                }, formatMonthSelectLabel(index, this.locale)));
+            }.bind(this));
+
+            yearSelect.setAttribute("aria-label", this.locale.selectYear || "Select a year");
+            this.updateNavigationLabels();
+            this.updateFooterLabels();
+        }
+
+
+        updateNavigationLabels() {
+            const buttons = this.elements.header.querySelectorAll("[data-bs-pickadate-navigation]");
+
+            Array.prototype.forEach.call(buttons, function(button) {
+                const delta = parseInt(button.getAttribute("data-bs-pickadate-navigation"), 10);
+                let label = "";
+
+                if (delta === -12) {
+                    label = this.locale.previousYear || "Previous year";
+                } else if (delta === -1) {
+                    label = this.locale.previousMonth || "Previous month";
+                } else if (delta === 1) {
+                    label = this.locale.nextMonth || "Next month";
+                } else if (delta === 12) {
+                    label = this.locale.nextYear || "Next year";
+                }
+
+                button.setAttribute("aria-label", label);
+                button.setAttribute("title", label);
+            }.bind(this));
+        }
+
+        updateFooterLabels() {
+            if (this.elements.todayButton) {
+                this.elements.todayButton.textContent = this.locale.today || "Today";
+            }
+
+            if (this.elements.clearButton) {
+                this.elements.clearButton.textContent = this.locale.clear || "Clear";
+            }
+
+            if (this.elements.closeButton) {
+                this.elements.closeButton.textContent = this.locale.close || "Close";
+            }
+        }
+
         handleKeydown(event) {
             if (event.key === "Escape") {
+                event.preventDefault();
                 this.close();
                 return;
             }
@@ -638,6 +1013,7 @@
             }
 
             if (event.key === "Enter") {
+                event.preventDefault();
                 this.handleInputChange();
                 this.close();
             }
@@ -655,6 +1031,15 @@
                 return;
             }
 
+            if (this.isIntervalMode()) {
+                const parsed = this.parseIntervalValue(value);
+
+                if (parsed[0]) {
+                    this.value(dateToIso(parsed[0]) + "/" + dateToIso(parsed[1]));
+                    return;
+                }
+            }
+
             const date = parseDateText(value, this.locale, this.getFormat());
 
             if (date && this.isSelectable(date)) {
@@ -662,15 +1047,15 @@
                 return;
             }
 
-            this.syncInput();
+            this.syncInput(false);
         }
 
         handleDocumentMouseDown(event) {
-            if (!this.dropdown) {
+            if (!this.elements.dropdown) {
                 return;
             }
 
-            if (event.target === this.input || this.dropdown.contains(event.target)) {
+            if (event.target === this.input || this.elements.dropdown.contains(event.target)) {
                 return;
             }
 
@@ -724,15 +1109,10 @@
                 return;
             }
 
-            if (!this.dropdown) {
-                this.dropdown = this.createDropdown();
-                document.body.appendChild(this.dropdown);
-            }
-
             this.isOpen = true;
-            this.render();
+            this.updateCalendar();
             this.positionDropdown();
-            this.dropdown.classList.add("show");
+            this.elements.dropdown.classList.add("show");
             document.addEventListener("mousedown", this.bound.documentMouseDown);
             window.addEventListener("resize", this.bound.resize);
             window.addEventListener("scroll", this.bound.scroll, true);
@@ -744,30 +1124,14 @@
             }
 
             this.isOpen = false;
-
-            if (this.dropdown) {
-                this.dropdown.classList.remove("show");
-            }
-
+            this.elements.dropdown.classList.remove("show");
             document.removeEventListener("mousedown", this.bound.documentMouseDown);
             window.removeEventListener("resize", this.bound.resize);
             window.removeEventListener("scroll", this.bound.scroll, true);
         }
 
-        createDropdown() {
-            const dropdown = createElement("div", "bootstrap-pickadate-dropdown card shadow", {
-                role: "dialog",
-                "aria-modal": "false",
-                "aria-label": "Date picker"
-            });
-
-            dropdown.dataset.bsPickadateOwner = this.inputId;
-
-            return dropdown;
-        }
-
         positionDropdown() {
-            if (!this.dropdown || !this.isOpen) {
+            if (!this.elements.dropdown || !this.isOpen) {
                 return;
             }
 
@@ -776,189 +1140,100 @@
             const groupRect = group ? group.getBoundingClientRect() : rect;
             const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
             const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-            const dropdownWidth = this.options.dropdownWidth || Math.max(groupRect.width, 300) + "px";
+            const defaultWidth = this.isIntervalMode() ? "min(43rem, calc(100vw - 1rem))" : "22rem";
+            const dropdownWidth = this.options.dropdownWidth || defaultWidth;
 
-            this.dropdown.style.width = dropdownWidth;
-            this.dropdown.style.left = groupRect.left + scrollLeft + "px";
+            this.elements.dropdown.style.width = dropdownWidth;
 
-            const dropdownHeight = this.dropdown.offsetHeight || 360;
+            const viewportPadding = 8;
+            const dropdownWidthPixels = this.elements.dropdown.offsetWidth || groupRect.width;
+            const maximumLeft = scrollLeft + window.innerWidth - dropdownWidthPixels - viewportPadding;
+            const preferredLeft = groupRect.left + scrollLeft;
+            const left = Math.max(scrollLeft + viewportPadding, Math.min(preferredLeft, maximumLeft));
+
+            this.elements.dropdown.style.left = left + "px";
+
+            const dropdownHeight = this.elements.dropdown.offsetHeight || 360;
             const belowTop = groupRect.bottom + scrollTop + 4;
             const aboveTop = groupRect.top + scrollTop - dropdownHeight - 4;
             const hasSpaceBelow = groupRect.bottom + dropdownHeight + 8 <= window.innerHeight;
 
-            this.dropdown.style.top = (hasSpaceBelow || aboveTop < scrollTop ? belowTop : aboveTop) + "px";
+            this.elements.dropdown.style.top = (hasSpaceBelow || aboveTop < scrollTop ? belowTop : aboveTop) + "px";
         }
 
-        render() {
-            if (!this.dropdown) {
-                return;
-            }
+        updateCalendar() {
+            this.updateYearOptions();
+            this.elements.monthSelect.value = String(this.viewDate.getMonth());
+            this.elements.yearSelect.value = String(this.viewDate.getFullYear());
+            this.elements.dropdown.dir = this.locale.direction || "ltr";
 
-            this.dropdown.innerHTML = "";
-            this.dropdown.dir = this.locale.direction || "ltr";
+            const firstDay = parseInt(this.locale.firstDay || 0, 10);
 
-            const body = createElement("div", "card-body p-2 bootstrap-pickadate-calendar");
-            body.appendChild(this.renderHeader());
-            body.appendChild(this.renderTable());
-            body.appendChild(this.renderFooter());
-            this.dropdown.appendChild(body);
+            this.months.forEach(function(month) {
+                const monthDate = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth() + month.offset, 1);
+                const gridStart = this.getGridStart(firstDay, monthDate);
+
+                month.title.textContent = this.locale.months[monthDate.getMonth()] + " " + monthDate.getFullYear();
+
+                for (let index = 0; index < DAY_COUNT; index++) {
+                    const date = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index);
+                    this.updateDayButton(month.buttons[index], date, monthDate, month.offset);
+                }
+            }.bind(this));
+
             this.positionDropdown();
         }
 
-        renderHeader() {
-            const header = createElement("div", "bootstrap-pickadate-header d-flex align-items-center gap-1 mb-2");
-            const previousYear = this.createNavigationButton("bi-chevron-double-left", this.locale.previousYear || "Previous year", function() {
-                this.moveYear(-1);
-            }.bind(this));
-            const previousMonth = this.createNavigationButton("bi-chevron-left", this.locale.previousMonth || "Previous month", function() {
-                this.moveMonth(-1);
-            }.bind(this));
-            const monthSelect = this.createMonthSelect();
-            const yearSelect = this.createYearSelect();
-            const nextMonth = this.createNavigationButton("bi-chevron-right", this.locale.nextMonth || "Next month", function() {
-                this.moveMonth(1);
-            }.bind(this));
-            const nextYear = this.createNavigationButton("bi-chevron-double-right", this.locale.nextYear || "Next year", function() {
-                this.moveYear(1);
-            }.bind(this));
 
-            header.appendChild(previousYear);
-            header.appendChild(previousMonth);
-            header.appendChild(monthSelect);
-            header.appendChild(yearSelect);
-            header.appendChild(nextMonth);
-            header.appendChild(nextYear);
-
-            return header;
-        }
-
-        createNavigationButton(iconName, label, callback) {
-            const button = createElement("button", "btn btn-sm btn-outline-secondary bootstrap-pickadate-nav", {
-                type: "button",
-                "aria-label": label,
-                title: label
-            });
-            const icon = createElement("i", "bi " + iconName);
-
-            button.appendChild(icon);
-            button.addEventListener("click", callback);
-
-            return button;
-        }
-
-        createMonthSelect() {
-            const select = createElement("select", "form-select form-select-sm bootstrap-pickadate-month", {
-                "aria-label": this.locale.selectMonth || "Select a month"
-            });
-
-            this.locale.months.forEach(function(month, index) {
-                const option = createElement("option", "", {
-                    value: String(index)
-                }, month);
-
-                if (index === this.viewDate.getMonth()) {
-                    option.selected = true;
-                }
-
-                select.appendChild(option);
-            }.bind(this));
-
-            select.addEventListener("change", function() {
-                this.viewDate = new Date(this.viewDate.getFullYear(), parseInt(select.value, 10), 1);
-                this.render();
-            }.bind(this));
-
-            return select;
-        }
-
-        createYearSelect() {
+        updateYearOptions() {
             const currentYear = this.viewDate.getFullYear();
             const min = this.getEffectiveMinDate();
             const max = this.getEffectiveMaxDate();
-            const yearRange = this.options.yearRange;
-            const minYear = min ? min.getFullYear() : currentYear - yearRange;
-            const maxYear = max ? max.getFullYear() : currentYear + yearRange;
-            const select = createElement("select", "form-select form-select-sm bootstrap-pickadate-year", {
-                "aria-label": this.locale.selectYear || "Select a year"
-            });
+            const minYear = min ? min.getFullYear() : currentYear - this.options.yearRange;
+            const maxYear = max ? max.getFullYear() : currentYear + this.options.yearRange;
+            const yearSelect = this.elements.yearSelect;
+
+            if (yearSelect.dataset.minYear === String(minYear) && yearSelect.dataset.maxYear === String(maxYear)) {
+                return;
+            }
+
+            yearSelect.innerHTML = "";
+            yearSelect.dataset.minYear = String(minYear);
+            yearSelect.dataset.maxYear = String(maxYear);
 
             for (let year = minYear; year <= maxYear; year++) {
-                const option = createElement("option", "", {
+                yearSelect.appendChild(createElement("option", "", {
                     value: String(year)
-                }, String(year));
-
-                if (year === currentYear) {
-                    option.selected = true;
-                }
-
-                select.appendChild(option);
+                }, String(year)));
             }
-
-            select.addEventListener("change", function() {
-                this.viewDate = new Date(parseInt(select.value, 10), this.viewDate.getMonth(), 1);
-                this.render();
-            }.bind(this));
-
-            return select;
         }
 
-        renderTable() {
-            const table = createElement("table", "table table-sm mb-2 bootstrap-pickadate-table");
-            const thead = createElement("thead");
-            const tbody = createElement("tbody");
-            const weekdaysRow = createElement("tr");
-            const firstDay = parseInt(this.locale.firstDay || 0, 10);
-
-            for (let index = 0; index < 7; index++) {
-                const dayIndex = (firstDay + index) % 7;
-                const header = createElement("th", "text-center fw-normal", {
-                    scope: "col",
-                    title: this.locale.weekdays[dayIndex]
-                }, this.locale.weekdaysShort[dayIndex]);
-
-                weekdaysRow.appendChild(header);
-            }
-
-            thead.appendChild(weekdaysRow);
-
-            const gridStart = this.getGridStart(firstDay);
-
-            for (let row = 0; row < 6; row++) {
-                const tr = createElement("tr");
-
-                for (let col = 0; col < 7; col++) {
-                    const date = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + row * 7 + col);
-                    const td = createElement("td", "text-center p-0");
-
-                    td.appendChild(this.renderDayButton(date));
-                    tr.appendChild(td);
-                }
-
-                tbody.appendChild(tr);
-            }
-
-            table.appendChild(thead);
-            table.appendChild(tbody);
-
-            return table;
-        }
-
-        getGridStart(firstDay) {
-            const firstOfMonth = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth(), 1);
+        getGridStart(firstDay, viewDate) {
+            const usedViewDate = viewDate || this.viewDate;
+            const firstOfMonth = new Date(usedViewDate.getFullYear(), usedViewDate.getMonth(), 1);
             const offset = (firstOfMonth.getDay() - firstDay + 7) % 7;
 
-            return new Date(this.viewDate.getFullYear(), this.viewDate.getMonth(), 1 - offset);
+            return new Date(usedViewDate.getFullYear(), usedViewDate.getMonth(), 1 - offset);
         }
 
-        renderDayButton(date) {
+
+        updateDayButton(button, date, monthDate, monthOffset) {
             const iso = dateToIso(date);
-            const isCurrentMonth = date.getMonth() === this.viewDate.getMonth();
-            const isSelected = this.selectedDate && compareDates(date, this.selectedDate) === 0;
+            const usedMonthDate = monthDate || this.viewDate;
+            const usedMonthOffset = Number.isInteger(monthOffset) ? monthOffset : 0;
+            const isCurrentMonth = date.getFullYear() === usedMonthDate.getFullYear() && date.getMonth() === usedMonthDate.getMonth();
+            const isHiddenIntervalOverlap = this.isHiddenIntervalOverlapDay(date, usedMonthDate, usedMonthOffset);
+            const isSelected = !this.isIntervalMode() && this.selectedDate && compareDates(date, this.selectedDate) === 0;
+            const intervalRange = this.getVisibleIntervalRange();
+            const isIntervalStart = this.isIntervalMode() && this.intervalStartDate && compareDates(date, this.intervalStartDate) === 0;
+            const isIntervalEnd = this.isIntervalMode() && this.intervalEndDate && compareDates(date, this.intervalEndDate) === 0;
+            const isInInterval = intervalRange.start && intervalRange.end && compareDates(date, intervalRange.start) >= 0 && compareDates(date, intervalRange.end) <= 0;
+            const isPreviewInterval = this.isIntervalMode() && !this.intervalEndDate && this.intervalHoverDate && isInInterval;
             const isToday = compareDates(date, new Date()) === 0;
             const selectable = this.isSelectable(date);
             const classes = ["btn", "btn-sm", "bootstrap-pickadate-day"];
 
-            if (isSelected) {
+            if (isSelected || isInInterval) {
                 classes.push("btn-primary");
             } else if (isToday) {
                 classes.push("btn-outline-primary");
@@ -966,119 +1241,289 @@
                 classes.push("btn-outline-secondary");
             }
 
+            if (isIntervalStart) {
+                classes.push("bootstrap-pickadate-interval-start");
+            }
+
+            if (isIntervalEnd) {
+                classes.push("bootstrap-pickadate-interval-end");
+            }
+
+            if (isInInterval) {
+                classes.push("bootstrap-pickadate-in-range");
+            }
+
+            if (isPreviewInterval) {
+                classes.push("bootstrap-pickadate-preview-range");
+            }
+
             if (!isCurrentMonth) {
                 classes.push("bootstrap-pickadate-other-month");
             }
 
-            const button = createElement("button", classes.join(" "), {
-                type: "button",
-                "data-bs-pickadate-date": iso,
-                "aria-label": formatDate(date, this.locale, this.getFormat())
-            }, String(date.getDate()));
-
-            if (!selectable) {
-                button.disabled = true;
+            if (isHiddenIntervalOverlap) {
+                classes.push("bootstrap-pickadate-hidden-overlap");
             }
 
-            button.addEventListener("click", function() {
-                this.selectDate(date);
+            button.className = classes.join(" ");
+            button.textContent = String(date.getDate());
+            button.dataset.bsPickadateDate = iso;
+            button.setAttribute("aria-label", formatDate(date, this.locale, this.getFormat()));
+            button.disabled = !selectable || isHiddenIntervalOverlap;
+            button.tabIndex = isHiddenIntervalOverlap ? -1 : 0;
+            button.setAttribute("aria-hidden", isHiddenIntervalOverlap ? "true" : "false");
+        }
 
-                if (this.options.autoClose) {
-                    this.close();
-                    this.input.focus();
+        isHiddenIntervalOverlapDay(date, monthDate, monthOffset) {
+            if (!this.isIntervalMode()) {
+                return false;
+            }
+
+            if (monthOffset === 0) {
+                const nextMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1);
+
+                return date.getFullYear() === nextMonth.getFullYear() && date.getMonth() === nextMonth.getMonth();
+            }
+
+            if (monthOffset === 1) {
+                const previousMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() - 1, 1);
+
+                return date.getFullYear() === previousMonth.getFullYear() && date.getMonth() === previousMonth.getMonth();
+            }
+
+            return false;
+        }
+
+        getVisibleIntervalRange() {
+            if (!this.isIntervalMode() || !this.intervalStartDate) {
+                return {
+                    start: null,
+                    end: null
+                };
+            }
+
+            if (this.intervalEndDate) {
+                return {
+                    start: this.intervalStartDate,
+                    end: this.intervalEndDate
+                };
+            }
+
+            if (!this.intervalHoverDate) {
+                return {
+                    start: this.intervalStartDate,
+                    end: this.intervalStartDate
+                };
+            }
+
+            if (compareDates(this.intervalHoverDate, this.intervalStartDate) < 0) {
+                return {
+                    start: this.intervalHoverDate,
+                    end: this.intervalStartDate
+                };
+            }
+
+            return {
+                start: this.intervalStartDate,
+                end: this.intervalHoverDate
+            };
+        }
+
+
+        updateDayStatesOnly() {
+            if (this.isIntervalMode()) {
+                this.updateCalendar();
+                return;
+            }
+
+            for (let index = 0; index < this.dayButtons.length; index++) {
+                const button = this.dayButtons[index];
+                const date = isoToDate(button.dataset.bsPickadateDate);
+
+                if (date) {
+                    this.updateDayButton(button, date);
                 }
-            }.bind(this));
-
-            return button;
+            }
         }
 
-        renderFooter() {
-            const footer = createElement("div", "bootstrap-pickadate-footer d-flex justify-content-between gap-1");
 
-            if (this.options.todayButton) {
-                const todayButton = createElement("button", "btn btn-sm btn-outline-secondary", {
-                    type: "button"
-                }, this.locale.today || "Today");
-
-                todayButton.addEventListener("click", function() {
-                    this.today();
-                }.bind(this));
-                footer.appendChild(todayButton);
+        handleDayHover(button) {
+            if (!this.isIntervalMode() || !this.intervalStartDate || this.intervalEndDate) {
+                return;
             }
 
-            const spacer = createElement("span", "flex-grow-1");
-            footer.appendChild(spacer);
+            const date = button ? isoToDate(button.dataset.bsPickadateDate) : null;
 
-            if (this.options.clearButton) {
-                const clearButton = createElement("button", "btn btn-sm btn-outline-secondary", {
-                    type: "button"
-                }, this.locale.clear || "Clear");
-
-                clearButton.addEventListener("click", function() {
-                    this.clear();
-                }.bind(this));
-                footer.appendChild(clearButton);
+            if (date && !this.isSelectable(date)) {
+                return;
             }
 
-            if (this.options.closeButton) {
-                const closeButton = createElement("button", "btn btn-sm btn-outline-secondary", {
-                    type: "button"
-                }, this.locale.close || "Close");
+            const oldValue = dateToIso(this.intervalHoverDate);
+            const newValue = dateToIso(date);
 
-                closeButton.addEventListener("click", function() {
-                    this.close();
-                    this.input.focus();
-                }.bind(this));
-                footer.appendChild(closeButton);
+            if (oldValue === newValue) {
+                return;
             }
 
-            return footer;
+            this.intervalHoverDate = cloneDate(date);
+            this.updateDayStatesOnly();
         }
 
-        moveMonth(delta) {
-            this.viewDate = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth() + delta, 1);
-            this.render();
+
+        handleDayClick(button) {
+            const date = isoToDate(button.dataset.bsPickadateDate);
+
+            if (!date) {
+                return;
+            }
+
+            if (this.isIntervalMode()) {
+                this.selectIntervalDate(date);
+                return;
+            }
+
+            this.selectDate(date, false, this.options.autoClose);
+
+            if (this.options.autoClose) {
+                this.close();
+            }
         }
 
-        moveYear(delta) {
-            this.viewDate = new Date(this.viewDate.getFullYear() + delta, this.viewDate.getMonth(), 1);
-            this.render();
-        }
-
-        selectDate(date, skipRangeSync) {
+        selectIntervalDate(date) {
             if (!date || !this.isSelectable(date)) {
                 return this;
             }
 
-            this.selectedDate = cloneDate(date);
-            this.viewDate = cloneDate(date);
-            this.syncInput();
-            this.dispatchChange();
-
-            if (!skipRangeSync) {
-                this.syncRangePair();
+            if (!this.intervalStartDate || this.intervalEndDate) {
+                this.intervalStartDate = cloneDate(date);
+                this.intervalEndDate = null;
+                this.intervalHoverDate = null;
+                this.viewDate = new Date(date.getFullYear(), date.getMonth(), 1);
+                this.syncInput(true);
+                this.updateCalendar();
+                return this;
             }
 
-            if (this.isOpen) {
-                this.render();
+            if (compareDates(date, this.intervalStartDate) < 0) {
+                this.intervalEndDate = cloneDate(this.intervalStartDate);
+                this.intervalStartDate = cloneDate(date);
+            } else {
+                this.intervalEndDate = cloneDate(date);
+            }
+
+            this.intervalHoverDate = null;
+            this.syncInput(true);
+            this.updateDayStatesOnly();
+
+            if (this.options.autoClose) {
+                this.close();
             }
 
             return this;
         }
 
-        syncInput() {
-            const iso = dateToIso(this.selectedDate);
+
+        setViewMonth(month) {
+            if (!Number.isInteger(month)) {
+                return;
+            }
+
+            this.viewDate = new Date(this.viewDate.getFullYear(), month, 1);
+            this.updateCalendar();
+        }
+
+        setViewYear(year) {
+            if (!Number.isInteger(year)) {
+                return;
+            }
+
+            this.viewDate = new Date(year, this.viewDate.getMonth(), 1);
+            this.updateCalendar();
+        }
+
+        moveMonth(delta) {
+            this.viewDate = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth() + delta, 1);
+            this.updateCalendar();
+        }
+
+        moveYear(delta) {
+            this.moveMonth(delta * 12);
+        }
+
+        selectDate(date, skipRangeSync, skipRender) {
+            if (!date || !this.isSelectable(date)) {
+                return this;
+            }
+
+            const oldValue = dateToIso(this.selectedDate);
+            this.selectedDate = cloneDate(date);
+            this.viewDate = cloneDate(date);
+            const changed = this.syncInput(false);
+
+            if (changed || oldValue !== dateToIso(this.selectedDate)) {
+                this.dispatchChange();
+            }
+
+            if (!skipRangeSync) {
+                this.syncRangePair();
+            }
+
+            if (this.isOpen && !skipRender) {
+                this.updateCalendar();
+            } else if (this.isOpen) {
+                this.updateDayStatesOnly();
+            }
+
+            return this;
+        }
+
+        syncInput(dispatchChange) {
+            let iso = "";
+            let visibleValue = "";
+
+            if (this.isIntervalMode()) {
+                const startIso = dateToIso(this.intervalStartDate);
+                const endIso = dateToIso(this.intervalEndDate);
+                iso = this.getIntervalValue();
+
+                if (this.intervalStartDate && this.intervalEndDate) {
+                    visibleValue = formatDate(this.intervalStartDate, this.locale, this.getFormat()) + this.options.intervalSeparator + formatDate(this.intervalEndDate, this.locale, this.getFormat());
+                } else if (this.intervalStartDate) {
+                    visibleValue = formatDate(this.intervalStartDate, this.locale, this.getFormat()) + this.options.intervalSeparator;
+                }
+
+                if (this.hiddenStartInput) {
+                    this.hiddenStartInput.value = startIso;
+                }
+
+                if (this.hiddenEndInput) {
+                    this.hiddenEndInput.value = endIso;
+                }
+            } else {
+                iso = dateToIso(this.selectedDate);
+                visibleValue = this.selectedDate ? formatDate(this.selectedDate, this.locale, this.getFormat()) : "";
+            }
+
+            const changed = iso !== this.lastValue;
 
             this.silent = true;
-            this.input.value = this.selectedDate ? formatDate(this.selectedDate, this.locale, this.getFormat()) : "";
+            this.input.value = visibleValue;
             this.input.dataset.bsPickadateValue = iso;
 
             if (this.hiddenInput) {
                 this.hiddenInput.value = iso;
             }
 
+            this.lastValue = iso;
             this.silent = false;
+
+            if (dispatchChange && changed) {
+                this.dispatchChange();
+            }
+
+            return changed;
         }
+
 
         dispatchChange() {
             const inputEvent = new Event("input", {
@@ -1095,44 +1540,113 @@
                 this.hiddenInput.dispatchEvent(inputEvent);
                 this.hiddenInput.dispatchEvent(changeEvent);
             }
+
+            if (this.hiddenStartInput) {
+                this.hiddenStartInput.dispatchEvent(inputEvent);
+                this.hiddenStartInput.dispatchEvent(changeEvent);
+            }
+
+            if (this.hiddenEndInput) {
+                this.hiddenEndInput.dispatchEvent(inputEvent);
+                this.hiddenEndInput.dispatchEvent(changeEvent);
+            }
         }
 
         clear(skipRangeSync) {
+            const changed = Boolean(this.selectedDate || this.intervalStartDate || this.intervalEndDate || this.lastValue);
             this.selectedDate = null;
-            this.syncInput();
-            this.dispatchChange();
+            this.intervalStartDate = null;
+            this.intervalEndDate = null;
+            this.intervalHoverDate = null;
+            this.syncInput(false);
 
-            if (!skipRangeSync) {
+            if (changed) {
+                this.dispatchChange();
+            }
+
+            if (!skipRangeSync && !this.isIntervalMode()) {
                 this.syncRangePair();
             }
 
             if (this.isOpen) {
-                this.render();
+                this.updateDayStatesOnly();
             }
 
             return this;
         }
+
 
         today() {
             const today = startOfDay(new Date());
 
+            if (this.isIntervalMode()) {
+                if (this.isSelectable(today)) {
+                    this.selectIntervalDate(today);
+                } else {
+                    this.viewDate = new Date(today.getFullYear(), today.getMonth(), 1);
+
+                    if (this.isOpen) {
+                        this.updateCalendar();
+                    }
+                }
+
+                return this;
+            }
+
             if (this.isSelectable(today)) {
-                this.selectDate(today);
+                this.selectDate(today, false, this.options.autoClose);
+
+                if (this.options.autoClose) {
+                    this.close();
+                }
             } else {
                 this.viewDate = today;
-                this.render();
+
+                if (this.isOpen) {
+                    this.updateCalendar();
+                }
             }
 
             return this;
         }
 
+
         value(value) {
             if (value === undefined) {
-                return dateToIso(this.selectedDate);
+                return this.isIntervalMode() ? this.getIntervalValue() : dateToIso(this.selectedDate);
             }
 
             if (value === null || value === "") {
                 return this.clear();
+            }
+
+            if (this.isIntervalMode()) {
+                const parsed = this.parseIntervalValue(value);
+
+                if (parsed[0] && this.isSelectable(parsed[0])) {
+                    this.intervalStartDate = parsed[0];
+                    this.intervalHoverDate = null;
+                    this.viewDate = new Date(parsed[0].getFullYear(), parsed[0].getMonth(), 1);
+                }
+
+                if (parsed[1] && this.isSelectable(parsed[1])) {
+                    this.intervalEndDate = parsed[1];
+                    this.intervalHoverDate = null;
+                }
+
+                if (this.intervalStartDate && this.intervalEndDate && compareDates(this.intervalEndDate, this.intervalStartDate) < 0) {
+                    const temporary = this.intervalStartDate;
+                    this.intervalStartDate = this.intervalEndDate;
+                    this.intervalEndDate = temporary;
+                }
+
+                this.syncInput(true);
+
+                if (this.isOpen) {
+                    this.updateCalendar();
+                }
+
+                return this;
             }
 
             const date = isString(value) ? isoToDate(value) : value;
@@ -1144,10 +1658,14 @@
             return this;
         }
 
+
         setMin(value) {
             this.runtimeMinDate = value ? isoToDate(value) || cloneDate(value) : null;
             this.enforceBounds();
-            this.render();
+
+            if (this.isOpen) {
+                this.updateCalendar();
+            }
 
             return this;
         }
@@ -1155,7 +1673,10 @@
         setMax(value) {
             this.runtimeMaxDate = value ? isoToDate(value) || cloneDate(value) : null;
             this.enforceBounds();
-            this.render();
+
+            if (this.isOpen) {
+                this.updateCalendar();
+            }
 
             return this;
         }
@@ -1214,16 +1735,32 @@
         refreshLocale(locale) {
             this.localeCode = this.resolveLocaleCode(locale || this.options.locale, this.options.defaultLocale);
             this.locale = getLocale(this.localeCode, this.options.defaultLocale);
-            this.syncInput();
-            this.render();
+            this.syncInput(false);
+            this.updateLocaleText();
+            this.updateCalendar();
 
             return this;
         }
 
         refresh() {
             this.options = mergeOptions(this.options, this.readDataOptions());
-            this.locale = getLocale(this.resolveLocaleCode(this.options.locale, this.options.defaultLocale), this.options.defaultLocale);
-            this.render();
+            this.options.todayButton = toBoolean(this.options.todayButton, true);
+            this.options.clearButton = toBoolean(this.options.clearButton, true);
+            this.options.closeButton = toBoolean(this.options.closeButton, true);
+            this.options.autoClose = toBoolean(this.options.autoClose, true);
+            this.options.readonly = toBoolean(this.options.readonly, false);
+            this.options.yearRange = normaliseYearRange(this.options.yearRange);
+            this.options.mode = this.options.mode === INTERVAL_MODE ? INTERVAL_MODE : "single";
+            this.localeCode = this.resolveLocaleCode(this.options.locale, this.options.defaultLocale);
+            this.locale = getLocale(this.localeCode, this.options.defaultLocale);
+            this.baseMinDate = isoToDate(this.options.min);
+            this.baseMaxDate = isoToDate(this.options.max);
+            this.hiddenInput = this.findHiddenInput();
+            this.hiddenStartInput = this.findTargetInput(this.options.hiddenStartTarget);
+            this.hiddenEndInput = this.findTargetInput(this.options.hiddenEndTarget);
+            this.buildFooter();
+            this.updateLocaleText();
+            this.updateCalendar();
 
             return this;
         }
@@ -1244,8 +1781,8 @@
                 }
             }.bind(this));
 
-            if (this.dropdown && this.dropdown.parentNode) {
-                this.dropdown.parentNode.removeChild(this.dropdown);
+            if (this.elements.dropdown && this.elements.dropdown.parentNode) {
+                this.elements.dropdown.parentNode.removeChild(this.elements.dropdown);
             }
 
             this.unregister();
@@ -1323,7 +1860,7 @@
     }
 
     bsPickadate.defaultLocale = DEFAULT_LOCALE;
-    bsPickadate.version = "5.3.0-alpha.1";
+    bsPickadate.version = "5.3.0-alpha.3";
 
     function initialiseInput(input) {
         if (!input || input[COMPONENT_PROPERTY]) {

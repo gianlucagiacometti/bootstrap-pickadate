@@ -35,6 +35,7 @@
             "Mười Một",
             "Mười Hai"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "Chủ Nhật",
             "Thứ Hai",

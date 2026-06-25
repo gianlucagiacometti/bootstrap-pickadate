@@ -35,6 +35,7 @@
             "nóv",
             "des"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "sunnudagur",
             "mánudagur",

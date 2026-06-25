@@ -35,6 +35,7 @@
             "נוב",
             "דצמ"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "יום ראשון",
             "יום שני",

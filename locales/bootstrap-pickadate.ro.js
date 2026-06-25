@@ -35,6 +35,7 @@
             "noi",
             "dec"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "duminică",
             "luni",

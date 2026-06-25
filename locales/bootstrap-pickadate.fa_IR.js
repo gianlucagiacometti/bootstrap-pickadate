@@ -35,6 +35,7 @@
             "نوامبر",
             "دسامبر"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "یکشنبه",
             "دوشنبه",

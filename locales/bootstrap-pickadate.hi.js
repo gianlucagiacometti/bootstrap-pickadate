@@ -35,6 +35,7 @@
             "नव",
             "दिस"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "रविवार",
             "सोमवार",

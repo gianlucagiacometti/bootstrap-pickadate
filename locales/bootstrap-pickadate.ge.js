@@ -35,6 +35,7 @@
             "ნოემ",
             "დეკ"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "კვირა",
             "ორშაბათი",

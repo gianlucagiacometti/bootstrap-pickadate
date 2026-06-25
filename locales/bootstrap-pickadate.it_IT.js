@@ -35,6 +35,7 @@
             "nov",
             "dic"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "domenica",
             "lunedì",

@@ -35,6 +35,7 @@
             "11月",
             "12月"
         ],
+        "monthShortFormat": "mmm",
         "weekdays": [
             "日曜日",
             "月曜日",

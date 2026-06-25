@@ -35,6 +35,7 @@
             "stu",
             "pro"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "nedjelja",
             "ponedjeljak",

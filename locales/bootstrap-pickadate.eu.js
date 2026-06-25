@@ -35,6 +35,7 @@
             "aza",
             "abe"
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "igandea",
             "astelehena",

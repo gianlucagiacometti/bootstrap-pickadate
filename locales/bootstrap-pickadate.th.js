@@ -35,6 +35,7 @@
             "พ.ย.",
             "ธ.ค."
         ],
+        "monthShortFormat": "mm mmm",
         "weekdays": [
             "อาทิตย์",
             "จันทร์",
