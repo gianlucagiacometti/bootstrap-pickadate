@@ -80,7 +80,7 @@
         selectYear: "Select a year",
         firstDay: 1,
         format: "dd/mm/yyyy",
-        monthShortFormat: "mmm mm",
+        monthShortFormat: "mmm",
         direction: "ltr"
     };
 
@@ -377,7 +377,7 @@
 
     function formatMonthSelectLabel(index, locale) {
         const usedLocale = locale || window.bootstrapPickadateLocales.en;
-        const format = usedLocale.monthShortFormat || "mm mmm";
+        const format = usedLocale.monthShortFormat || "mmm";
         const replacements = {
             mmmm: usedLocale.months[index],
             mmm: usedLocale.monthsShort[index],
