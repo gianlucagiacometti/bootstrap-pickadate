@@ -8,7 +8,6 @@ It is intentionally limited to dates. It does not provide time picking, recurren
 
 - Bootstrap >= 5.3
 - Bootstrap Icons ^1 for the default navigation icons
-- Modern browsers with ECMAScript 2017 support
 
 
 ## Optional jQuery integration
