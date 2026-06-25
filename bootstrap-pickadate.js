@@ -1,0 +1,1352 @@
+/**
+ * Bootstrap Pickadate date picker component.
+ */
+
+"use strict";
+
+(function(window, document) {
+    const COMPONENT_PROPERTY = "bsPickadate";
+    const DEFAULT_LOCALE = "en";
+    const INSERTED_ANIMATION = "bootstrapPickadateInserted";
+
+    if (!window || !document) {
+        return;
+    }
+
+    window.bootstrapPickadateLocales = window.bootstrapPickadateLocales || {};
+    window.FORM = window.FORM || {};
+    window.FORM.pickadate = window.FORM.pickadate || {};
+
+    const defaultEnglishLocale = {
+        code: "en",
+        months: [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December"
+        ],
+        monthsShort: [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec"
+        ],
+        weekdays: [
+            "Sunday",
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday"
+        ],
+        weekdaysShort: [
+            "Sun",
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat"
+        ],
+        today: "Today",
+        clear: "Clear",
+        close: "Close",
+        previousMonth: "Previous month",
+        nextMonth: "Next month",
+        previousYear: "Previous year",
+        nextYear: "Next year",
+        selectMonth: "Select a month",
+        selectYear: "Select a year",
+        firstDay: 1,
+        format: "dd/mm/yyyy",
+        direction: "ltr"
+    };
+
+    window.bootstrapPickadateLocales.en = window.bootstrapPickadateLocales.en || defaultEnglishLocale;
+
+    const defaultOptions = {
+        locale: "current",
+        defaultLocale: DEFAULT_LOCALE,
+        format: "",
+        hiddenTarget: "",
+        min: "",
+        max: "",
+        rangeRole: "",
+        rangePair: "",
+        todayButton: true,
+        clearButton: true,
+        closeButton: true,
+        autoClose: true,
+        readonly: false,
+        dropdownWidth: "",
+        yearRange: 100
+    };
+
+    function isString(value) {
+        return typeof value === "string" || value instanceof String;
+    }
+
+    function isElement(value) {
+        return value && value.nodeType === 1;
+    }
+
+    function toBoolean(value, fallback) {
+        if (value === undefined || value === null || value === "") {
+            return fallback;
+        }
+
+        if (typeof value === "boolean") {
+            return value;
+        }
+
+        const normalised = String(value).toLowerCase();
+
+        if (["true", "1", "yes", "on"].indexOf(normalised) !== -1) {
+            return true;
+        }
+
+        if (["false", "0", "no", "off"].indexOf(normalised) !== -1) {
+            return false;
+        }
+
+        return fallback;
+    }
+
+    function pad(number) {
+        return String(number).padStart(2, "0");
+    }
+
+    function canonicalLocale(locale) {
+        if (!locale) {
+            return "";
+        }
+
+        const parts = String(locale).replace(/-/g, "_").split("_").filter(Boolean);
+
+        if (!parts.length) {
+            return "";
+        }
+
+        const base = parts.shift().toLowerCase();
+
+        if (!parts.length) {
+            return base;
+        }
+
+        const region = parts.shift().toUpperCase();
+        const extra = parts.map(function(part) {
+            return part.toLowerCase();
+        });
+
+        return [base, region].concat(extra).join("_");
+    }
+
+    function baseLocale(locale) {
+        const canonical = canonicalLocale(locale);
+        const parts = canonical.split("_");
+
+        return parts[0] || "";
+    }
+
+    function unique(values) {
+        const result = [];
+
+        values.forEach(function(value) {
+            if (value && result.indexOf(value) === -1) {
+                result.push(value);
+            }
+        });
+
+        return result;
+    }
+
+    function localeCandidates(locale, defaultLocale) {
+        const canonical = canonicalLocale(locale);
+        const fallback = canonicalLocale(defaultLocale || bsPickadate.defaultLocale || DEFAULT_LOCALE);
+
+        return unique([
+            canonical,
+            baseLocale(canonical),
+            fallback,
+            baseLocale(fallback),
+            DEFAULT_LOCALE
+        ]);
+    }
+
+    function getLocale(locale, defaultLocale) {
+        const candidates = localeCandidates(locale, defaultLocale);
+
+        for (let index = 0; index < candidates.length; index++) {
+            if (window.bootstrapPickadateLocales[candidates[index]]) {
+                return window.bootstrapPickadateLocales[candidates[index]];
+            }
+        }
+
+        return window.bootstrapPickadateLocales.en;
+    }
+
+    function cloneDate(date) {
+        if (!date) {
+            return null;
+        }
+
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+
+    function startOfDay(date) {
+        if (!date) {
+            return null;
+        }
+
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+
+    function compareDates(first, second) {
+        if (!first || !second) {
+            return 0;
+        }
+
+        const firstTime = startOfDay(first).getTime();
+        const secondTime = startOfDay(second).getTime();
+
+        if (firstTime < secondTime) {
+            return -1;
+        }
+
+        if (firstTime > secondTime) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    function isIsoDate(value) {
+        if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            return false;
+        }
+
+        return Boolean(isoToDate(value));
+    }
+
+    function isoToDate(value) {
+        if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            return null;
+        }
+
+        const parts = value.split("-").map(function(part) {
+            return parseInt(part, 10);
+        });
+
+        const date = new Date(parts[0], parts[1] - 1, parts[2]);
+
+        if (date.getFullYear() !== parts[0] || date.getMonth() !== parts[1] - 1 || date.getDate() !== parts[2]) {
+            return null;
+        }
+
+        return date;
+    }
+
+    function dateToIso(date) {
+        if (!date) {
+            return "";
+        }
+
+        return [
+            date.getFullYear(),
+            pad(date.getMonth() + 1),
+            pad(date.getDate())
+        ].join("-");
+    }
+
+    function getNumericFormatOrder(format) {
+        const lowerFormat = String(format || "dd/mm/yyyy").toLowerCase();
+        const matches = lowerFormat.match(/yyyy|yy|mm|m|dd|d/g) || [];
+        const order = [];
+
+        matches.forEach(function(match) {
+            const token = match.charAt(0);
+
+            if (order.indexOf(token) === -1) {
+                order.push(token);
+            }
+        });
+
+        if (order.indexOf("y") === -1 || order.indexOf("m") === -1 || order.indexOf("d") === -1) {
+            return ["d", "m", "y"];
+        }
+
+        return order.slice(0, 3);
+    }
+
+    function parseDateText(value, locale, format) {
+        if (!value) {
+            return null;
+        }
+
+        const trimmed = String(value).trim();
+
+        if (!trimmed) {
+            return null;
+        }
+
+        if (isIsoDate(trimmed)) {
+            return isoToDate(trimmed);
+        }
+
+        const numericParts = trimmed.match(/\d+/g);
+
+        if (!numericParts || numericParts.length !== 3) {
+            return null;
+        }
+
+        const order = getNumericFormatOrder(format || (locale && locale.format) || "dd/mm/yyyy");
+        const values = {};
+
+        order.forEach(function(token, index) {
+            values[token] = parseInt(numericParts[index], 10);
+        });
+
+        let year = values.y;
+
+        if (year < 100) {
+            year += year >= 70 ? 1900 : 2000;
+        }
+
+        if (!year || !values.m || !values.d) {
+            return null;
+        }
+
+        const date = new Date(year, values.m - 1, values.d);
+
+        if (date.getFullYear() !== year || date.getMonth() !== values.m - 1 || date.getDate() !== values.d) {
+            return null;
+        }
+
+        return date;
+    }
+
+    function formatDate(date, locale, forcedFormat) {
+        if (!date) {
+            return "";
+        }
+
+        const usedLocale = locale || window.bootstrapPickadateLocales.en;
+        const format = forcedFormat || usedLocale.format || "dd/mm/yyyy";
+        const replacements = {
+            yyyy: String(date.getFullYear()),
+            yy: String(date.getFullYear()).slice(-2),
+            mmmm: usedLocale.months[date.getMonth()],
+            mmm: usedLocale.monthsShort[date.getMonth()],
+            mm: pad(date.getMonth() + 1),
+            m: String(date.getMonth() + 1),
+            dddd: usedLocale.weekdays[date.getDay()],
+            ddd: usedLocale.weekdaysShort[date.getDay()],
+            dd: pad(date.getDate()),
+            d: String(date.getDate())
+        };
+
+        return format.replace(/yyyy|mmmm|dddd|mmm|ddd|yy|mm|dd|m|d/g, function(token) {
+            return replacements[token];
+        });
+    }
+
+    function createElement(tagName, className, attributes, text) {
+        const element = document.createElement(tagName);
+
+        if (className) {
+            element.className = className;
+        }
+
+        Object.keys(attributes || {}).forEach(function(name) {
+            if (attributes[name] !== null && attributes[name] !== undefined) {
+                element.setAttribute(name, attributes[name]);
+            }
+        });
+
+        if (text !== undefined && text !== null) {
+            element.textContent = text;
+        }
+
+        return element;
+    }
+
+    function randomIndex() {
+        return String(Date.now()) + String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+    }
+
+    function getInputId(input) {
+        if (!input.id) {
+            input.id = "bootstrap-pickadate-" + randomIndex();
+        }
+
+        return input.id;
+    }
+
+    function mergeOptions() {
+        const result = {};
+
+        Array.prototype.slice.call(arguments).forEach(function(source) {
+            Object.keys(source || {}).forEach(function(key) {
+                if (source[key] !== undefined) {
+                    result[key] = source[key];
+                }
+            });
+        });
+
+        return result;
+    }
+
+    function maxDate(first, second) {
+        if (!first) {
+            return cloneDate(second);
+        }
+
+        if (!second) {
+            return cloneDate(first);
+        }
+
+        return compareDates(first, second) >= 0 ? cloneDate(first) : cloneDate(second);
+    }
+
+    function minDate(first, second) {
+        if (!first) {
+            return cloneDate(second);
+        }
+
+        if (!second) {
+            return cloneDate(first);
+        }
+
+        return compareDates(first, second) <= 0 ? cloneDate(first) : cloneDate(second);
+    }
+
+    function normaliseYearRange(value) {
+        const parsed = parseInt(value, 10);
+
+        if (Number.isNaN(parsed) || parsed < 1) {
+            return 100;
+        }
+
+        return parsed;
+    }
+
+    class bsPickadate {
+        constructor(input, randomIndexValue, parameters) {
+            if (typeof randomIndexValue === "object" && parameters === undefined) {
+                parameters = randomIndexValue;
+                randomIndexValue = "";
+            }
+
+            this.input = isString(input) ? document.getElementById(input) : input;
+
+            if (!isElement(this.input) || this.input.tagName.toLowerCase() !== "input") {
+                throw new Error("bsPickadate needs an input element.");
+            }
+
+            this.index = randomIndexValue || this.input.dataset.bsPickadateIndex || randomIndex();
+            this.input.dataset.bsPickadateIndex = this.index;
+            this.inputId = getInputId(this.input);
+            this.options = mergeOptions(defaultOptions, this.readDataOptions(), parameters || {});
+            this.options.todayButton = toBoolean(this.options.todayButton, true);
+            this.options.clearButton = toBoolean(this.options.clearButton, true);
+            this.options.closeButton = toBoolean(this.options.closeButton, true);
+            this.options.autoClose = toBoolean(this.options.autoClose, true);
+            this.options.readonly = toBoolean(this.options.readonly, false);
+            this.options.yearRange = normaliseYearRange(this.options.yearRange);
+            this.localeCode = this.resolveLocaleCode(this.options.locale, this.options.defaultLocale);
+            this.locale = getLocale(this.localeCode, this.options.defaultLocale);
+            this.baseMinDate = isoToDate(this.options.min);
+            this.baseMaxDate = isoToDate(this.options.max);
+            this.runtimeMinDate = null;
+            this.runtimeMaxDate = null;
+            this.selectedDate = null;
+            this.viewDate = startOfDay(new Date());
+            this.dropdown = null;
+            this.isOpen = false;
+            this.silent = false;
+            this.destroyed = false;
+            this.bound = {};
+            this.hiddenInput = this.findHiddenInput();
+
+            this.bind();
+            this.restoreInitialValue();
+            this.syncInput();
+            this.register();
+        }
+
+        readDataOptions() {
+            const dataset = this.input.dataset;
+
+            return {
+                locale: dataset.bsPickadateLocale,
+                defaultLocale: dataset.bsPickadateDefaultLocale,
+                format: dataset.bsPickadateFormat,
+                hiddenTarget: dataset.bsPickadateHiddenTarget,
+                min: dataset.bsPickadateMin,
+                max: dataset.bsPickadateMax,
+                rangeRole: dataset.bsPickadateRangeRole,
+                rangePair: dataset.bsPickadateRangePair,
+                todayButton: dataset.bsPickadateTodayButton,
+                clearButton: dataset.bsPickadateClearButton,
+                closeButton: dataset.bsPickadateCloseButton,
+                autoClose: dataset.bsPickadateAutoClose,
+                readonly: dataset.bsPickadateReadonly,
+                dropdownWidth: dataset.bsPickadateDropdownWidth,
+                yearRange: dataset.bsPickadateYearRange
+            };
+        }
+
+        resolveLocaleCode(locale, defaultLocale) {
+            if (!locale || locale === "current") {
+                return canonicalLocale(bsPickadate.defaultLocale || defaultLocale || DEFAULT_LOCALE);
+            }
+
+            return canonicalLocale(locale);
+        }
+
+        findHiddenInput() {
+            if (!this.options.hiddenTarget) {
+                return null;
+            }
+
+            const hidden = document.querySelector(this.options.hiddenTarget);
+
+            if (!hidden || hidden.tagName.toLowerCase() !== "input") {
+                return null;
+            }
+
+            return hidden;
+        }
+
+        register() {
+            this.input[COMPONENT_PROPERTY] = this;
+            this.input.dataset.bsPickadateInitialised = "true";
+            window.FORM.pickadate[this.inputId] = this;
+        }
+
+        unregister() {
+            if (this.input[COMPONENT_PROPERTY] === this) {
+                delete this.input[COMPONENT_PROPERTY];
+            }
+
+            if (window.FORM.pickadate[this.inputId] === this) {
+                delete window.FORM.pickadate[this.inputId];
+            }
+
+            delete this.input.dataset.bsPickadateInitialised;
+        }
+
+        restoreInitialValue() {
+            const hiddenValue = this.hiddenInput ? this.hiddenInput.value : "";
+            const dataValue = this.input.dataset.bsPickadateValue || "";
+            const visibleValue = this.input.value || "";
+            const date = isoToDate(hiddenValue) || isoToDate(dataValue) || parseDateText(visibleValue, this.locale, this.getFormat());
+
+            if (date && this.isSelectable(date)) {
+                this.selectedDate = date;
+                this.viewDate = cloneDate(date);
+            }
+        }
+
+        bind() {
+            this.bound.focus = this.open.bind(this);
+            this.bound.click = this.open.bind(this);
+            this.bound.change = this.handleInputChange.bind(this);
+            this.bound.keydown = this.handleKeydown.bind(this);
+            this.bound.documentMouseDown = this.handleDocumentMouseDown.bind(this);
+            this.bound.resize = this.positionDropdown.bind(this);
+            this.bound.scroll = this.positionDropdown.bind(this);
+
+            this.input.setAttribute("autocomplete", "off");
+
+            if (this.options.readonly) {
+                this.input.setAttribute("readonly", "readonly");
+            }
+
+            this.input.addEventListener("focus", this.bound.focus);
+            this.input.addEventListener("click", this.bound.click);
+            this.input.addEventListener("change", this.bound.change);
+            this.input.addEventListener("keydown", this.bound.keydown);
+            this.bindInputGroupButtons();
+        }
+
+        bindInputGroupButtons() {
+            const inputGroup = this.input.closest(".input-group");
+
+            if (!inputGroup) {
+                return;
+            }
+
+            const buttons = inputGroup.querySelectorAll("[data-bs-pickadate-toggle], [data-bs-pickadate-clear]");
+
+            Array.prototype.forEach.call(buttons, function(button) {
+                const toggleTarget = button.getAttribute("data-bs-pickadate-toggle");
+                const clearTarget = button.getAttribute("data-bs-pickadate-clear");
+                const target = toggleTarget || clearTarget || "";
+
+                if (target && target !== "#" + this.inputId) {
+                    return;
+                }
+
+                const handler = function(event) {
+                    event.preventDefault();
+
+                    if (button.hasAttribute("data-bs-pickadate-clear")) {
+                        this.clear();
+                        return;
+                    }
+
+                    this.toggle();
+                }.bind(this);
+
+                button.addEventListener("click", handler);
+                this.bound["button-" + Object.keys(this.bound).length] = {
+                    element: button,
+                    type: "click",
+                    handler: handler
+                };
+            }.bind(this));
+        }
+
+        handleKeydown(event) {
+            if (event.key === "Escape") {
+                this.close();
+                return;
+            }
+
+            if (event.key === "ArrowDown") {
+                event.preventDefault();
+                this.open();
+                return;
+            }
+
+            if (event.key === "Enter") {
+                this.handleInputChange();
+                this.close();
+            }
+        }
+
+        handleInputChange() {
+            if (this.silent) {
+                return;
+            }
+
+            const value = this.input.value.trim();
+
+            if (!value) {
+                this.clear();
+                return;
+            }
+
+            const date = parseDateText(value, this.locale, this.getFormat());
+
+            if (date && this.isSelectable(date)) {
+                this.selectDate(date);
+                return;
+            }
+
+            this.syncInput();
+        }
+
+        handleDocumentMouseDown(event) {
+            if (!this.dropdown) {
+                return;
+            }
+
+            if (event.target === this.input || this.dropdown.contains(event.target)) {
+                return;
+            }
+
+            const inputGroup = this.input.closest(".input-group");
+
+            if (inputGroup && inputGroup.contains(event.target)) {
+                return;
+            }
+
+            this.close();
+        }
+
+        getFormat() {
+            return this.options.format || this.locale.format || "dd/mm/yyyy";
+        }
+
+        getEffectiveMinDate() {
+            return maxDate(this.baseMinDate, this.runtimeMinDate);
+        }
+
+        getEffectiveMaxDate() {
+            return minDate(this.baseMaxDate, this.runtimeMaxDate);
+        }
+
+        isSelectable(date) {
+            const min = this.getEffectiveMinDate();
+            const max = this.getEffectiveMaxDate();
+
+            if (min && compareDates(date, min) < 0) {
+                return false;
+            }
+
+            if (max && compareDates(date, max) > 0) {
+                return false;
+            }
+
+            return true;
+        }
+
+        toggle() {
+            if (this.isOpen) {
+                this.close();
+                return;
+            }
+
+            this.open();
+        }
+
+        open() {
+            if (this.destroyed || this.input.disabled || this.input.hasAttribute("disabled")) {
+                return;
+            }
+
+            if (!this.dropdown) {
+                this.dropdown = this.createDropdown();
+                document.body.appendChild(this.dropdown);
+            }
+
+            this.isOpen = true;
+            this.render();
+            this.positionDropdown();
+            this.dropdown.classList.add("show");
+            document.addEventListener("mousedown", this.bound.documentMouseDown);
+            window.addEventListener("resize", this.bound.resize);
+            window.addEventListener("scroll", this.bound.scroll, true);
+        }
+
+        close() {
+            if (!this.isOpen) {
+                return;
+            }
+
+            this.isOpen = false;
+
+            if (this.dropdown) {
+                this.dropdown.classList.remove("show");
+            }
+
+            document.removeEventListener("mousedown", this.bound.documentMouseDown);
+            window.removeEventListener("resize", this.bound.resize);
+            window.removeEventListener("scroll", this.bound.scroll, true);
+        }
+
+        createDropdown() {
+            const dropdown = createElement("div", "bootstrap-pickadate-dropdown card shadow", {
+                role: "dialog",
+                "aria-modal": "false",
+                "aria-label": "Date picker"
+            });
+
+            dropdown.dataset.bsPickadateOwner = this.inputId;
+
+            return dropdown;
+        }
+
+        positionDropdown() {
+            if (!this.dropdown || !this.isOpen) {
+                return;
+            }
+
+            const rect = this.input.getBoundingClientRect();
+            const group = this.input.closest(".input-group");
+            const groupRect = group ? group.getBoundingClientRect() : rect;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+            const dropdownWidth = this.options.dropdownWidth || Math.max(groupRect.width, 300) + "px";
+
+            this.dropdown.style.width = dropdownWidth;
+            this.dropdown.style.left = groupRect.left + scrollLeft + "px";
+
+            const dropdownHeight = this.dropdown.offsetHeight || 360;
+            const belowTop = groupRect.bottom + scrollTop + 4;
+            const aboveTop = groupRect.top + scrollTop - dropdownHeight - 4;
+            const hasSpaceBelow = groupRect.bottom + dropdownHeight + 8 <= window.innerHeight;
+
+            this.dropdown.style.top = (hasSpaceBelow || aboveTop < scrollTop ? belowTop : aboveTop) + "px";
+        }
+
+        render() {
+            if (!this.dropdown) {
+                return;
+            }
+
+            this.dropdown.innerHTML = "";
+            this.dropdown.dir = this.locale.direction || "ltr";
+
+            const body = createElement("div", "card-body p-2 bootstrap-pickadate-calendar");
+            body.appendChild(this.renderHeader());
+            body.appendChild(this.renderTable());
+            body.appendChild(this.renderFooter());
+            this.dropdown.appendChild(body);
+            this.positionDropdown();
+        }
+
+        renderHeader() {
+            const header = createElement("div", "bootstrap-pickadate-header d-flex align-items-center gap-1 mb-2");
+            const previousYear = this.createNavigationButton("bi-chevron-double-left", this.locale.previousYear || "Previous year", function() {
+                this.moveYear(-1);
+            }.bind(this));
+            const previousMonth = this.createNavigationButton("bi-chevron-left", this.locale.previousMonth || "Previous month", function() {
+                this.moveMonth(-1);
+            }.bind(this));
+            const monthSelect = this.createMonthSelect();
+            const yearSelect = this.createYearSelect();
+            const nextMonth = this.createNavigationButton("bi-chevron-right", this.locale.nextMonth || "Next month", function() {
+                this.moveMonth(1);
+            }.bind(this));
+            const nextYear = this.createNavigationButton("bi-chevron-double-right", this.locale.nextYear || "Next year", function() {
+                this.moveYear(1);
+            }.bind(this));
+
+            header.appendChild(previousYear);
+            header.appendChild(previousMonth);
+            header.appendChild(monthSelect);
+            header.appendChild(yearSelect);
+            header.appendChild(nextMonth);
+            header.appendChild(nextYear);
+
+            return header;
+        }
+
+        createNavigationButton(iconName, label, callback) {
+            const button = createElement("button", "btn btn-sm btn-outline-secondary bootstrap-pickadate-nav", {
+                type: "button",
+                "aria-label": label,
+                title: label
+            });
+            const icon = createElement("i", "bi " + iconName);
+
+            button.appendChild(icon);
+            button.addEventListener("click", callback);
+
+            return button;
+        }
+
+        createMonthSelect() {
+            const select = createElement("select", "form-select form-select-sm bootstrap-pickadate-month", {
+                "aria-label": this.locale.selectMonth || "Select a month"
+            });
+
+            this.locale.months.forEach(function(month, index) {
+                const option = createElement("option", "", {
+                    value: String(index)
+                }, month);
+
+                if (index === this.viewDate.getMonth()) {
+                    option.selected = true;
+                }
+
+                select.appendChild(option);
+            }.bind(this));
+
+            select.addEventListener("change", function() {
+                this.viewDate = new Date(this.viewDate.getFullYear(), parseInt(select.value, 10), 1);
+                this.render();
+            }.bind(this));
+
+            return select;
+        }
+
+        createYearSelect() {
+            const currentYear = this.viewDate.getFullYear();
+            const min = this.getEffectiveMinDate();
+            const max = this.getEffectiveMaxDate();
+            const yearRange = this.options.yearRange;
+            const minYear = min ? min.getFullYear() : currentYear - yearRange;
+            const maxYear = max ? max.getFullYear() : currentYear + yearRange;
+            const select = createElement("select", "form-select form-select-sm bootstrap-pickadate-year", {
+                "aria-label": this.locale.selectYear || "Select a year"
+            });
+
+            for (let year = minYear; year <= maxYear; year++) {
+                const option = createElement("option", "", {
+                    value: String(year)
+                }, String(year));
+
+                if (year === currentYear) {
+                    option.selected = true;
+                }
+
+                select.appendChild(option);
+            }
+
+            select.addEventListener("change", function() {
+                this.viewDate = new Date(parseInt(select.value, 10), this.viewDate.getMonth(), 1);
+                this.render();
+            }.bind(this));
+
+            return select;
+        }
+
+        renderTable() {
+            const table = createElement("table", "table table-sm mb-2 bootstrap-pickadate-table");
+            const thead = createElement("thead");
+            const tbody = createElement("tbody");
+            const weekdaysRow = createElement("tr");
+            const firstDay = parseInt(this.locale.firstDay || 0, 10);
+
+            for (let index = 0; index < 7; index++) {
+                const dayIndex = (firstDay + index) % 7;
+                const header = createElement("th", "text-center fw-normal", {
+                    scope: "col",
+                    title: this.locale.weekdays[dayIndex]
+                }, this.locale.weekdaysShort[dayIndex]);
+
+                weekdaysRow.appendChild(header);
+            }
+
+            thead.appendChild(weekdaysRow);
+
+            const gridStart = this.getGridStart(firstDay);
+
+            for (let row = 0; row < 6; row++) {
+                const tr = createElement("tr");
+
+                for (let col = 0; col < 7; col++) {
+                    const date = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + row * 7 + col);
+                    const td = createElement("td", "text-center p-0");
+
+                    td.appendChild(this.renderDayButton(date));
+                    tr.appendChild(td);
+                }
+
+                tbody.appendChild(tr);
+            }
+
+            table.appendChild(thead);
+            table.appendChild(tbody);
+
+            return table;
+        }
+
+        getGridStart(firstDay) {
+            const firstOfMonth = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth(), 1);
+            const offset = (firstOfMonth.getDay() - firstDay + 7) % 7;
+
+            return new Date(this.viewDate.getFullYear(), this.viewDate.getMonth(), 1 - offset);
+        }
+
+        renderDayButton(date) {
+            const iso = dateToIso(date);
+            const isCurrentMonth = date.getMonth() === this.viewDate.getMonth();
+            const isSelected = this.selectedDate && compareDates(date, this.selectedDate) === 0;
+            const isToday = compareDates(date, new Date()) === 0;
+            const selectable = this.isSelectable(date);
+            const classes = ["btn", "btn-sm", "bootstrap-pickadate-day"];
+
+            if (isSelected) {
+                classes.push("btn-primary");
+            } else if (isToday) {
+                classes.push("btn-outline-primary");
+            } else {
+                classes.push("btn-outline-secondary");
+            }
+
+            if (!isCurrentMonth) {
+                classes.push("bootstrap-pickadate-other-month");
+            }
+
+            const button = createElement("button", classes.join(" "), {
+                type: "button",
+                "data-bs-pickadate-date": iso,
+                "aria-label": formatDate(date, this.locale, this.getFormat())
+            }, String(date.getDate()));
+
+            if (!selectable) {
+                button.disabled = true;
+            }
+
+            button.addEventListener("click", function() {
+                this.selectDate(date);
+
+                if (this.options.autoClose) {
+                    this.close();
+                    this.input.focus();
+                }
+            }.bind(this));
+
+            return button;
+        }
+
+        renderFooter() {
+            const footer = createElement("div", "bootstrap-pickadate-footer d-flex justify-content-between gap-1");
+
+            if (this.options.todayButton) {
+                const todayButton = createElement("button", "btn btn-sm btn-outline-secondary", {
+                    type: "button"
+                }, this.locale.today || "Today");
+
+                todayButton.addEventListener("click", function() {
+                    this.today();
+                }.bind(this));
+                footer.appendChild(todayButton);
+            }
+
+            const spacer = createElement("span", "flex-grow-1");
+            footer.appendChild(spacer);
+
+            if (this.options.clearButton) {
+                const clearButton = createElement("button", "btn btn-sm btn-outline-secondary", {
+                    type: "button"
+                }, this.locale.clear || "Clear");
+
+                clearButton.addEventListener("click", function() {
+                    this.clear();
+                }.bind(this));
+                footer.appendChild(clearButton);
+            }
+
+            if (this.options.closeButton) {
+                const closeButton = createElement("button", "btn btn-sm btn-outline-secondary", {
+                    type: "button"
+                }, this.locale.close || "Close");
+
+                closeButton.addEventListener("click", function() {
+                    this.close();
+                    this.input.focus();
+                }.bind(this));
+                footer.appendChild(closeButton);
+            }
+
+            return footer;
+        }
+
+        moveMonth(delta) {
+            this.viewDate = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth() + delta, 1);
+            this.render();
+        }
+
+        moveYear(delta) {
+            this.viewDate = new Date(this.viewDate.getFullYear() + delta, this.viewDate.getMonth(), 1);
+            this.render();
+        }
+
+        selectDate(date, skipRangeSync) {
+            if (!date || !this.isSelectable(date)) {
+                return this;
+            }
+
+            this.selectedDate = cloneDate(date);
+            this.viewDate = cloneDate(date);
+            this.syncInput();
+            this.dispatchChange();
+
+            if (!skipRangeSync) {
+                this.syncRangePair();
+            }
+
+            if (this.isOpen) {
+                this.render();
+            }
+
+            return this;
+        }
+
+        syncInput() {
+            const iso = dateToIso(this.selectedDate);
+
+            this.silent = true;
+            this.input.value = this.selectedDate ? formatDate(this.selectedDate, this.locale, this.getFormat()) : "";
+            this.input.dataset.bsPickadateValue = iso;
+
+            if (this.hiddenInput) {
+                this.hiddenInput.value = iso;
+            }
+
+            this.silent = false;
+        }
+
+        dispatchChange() {
+            const inputEvent = new Event("input", {
+                bubbles: true
+            });
+            const changeEvent = new Event("change", {
+                bubbles: true
+            });
+
+            this.input.dispatchEvent(inputEvent);
+            this.input.dispatchEvent(changeEvent);
+
+            if (this.hiddenInput) {
+                this.hiddenInput.dispatchEvent(inputEvent);
+                this.hiddenInput.dispatchEvent(changeEvent);
+            }
+        }
+
+        clear(skipRangeSync) {
+            this.selectedDate = null;
+            this.syncInput();
+            this.dispatchChange();
+
+            if (!skipRangeSync) {
+                this.syncRangePair();
+            }
+
+            if (this.isOpen) {
+                this.render();
+            }
+
+            return this;
+        }
+
+        today() {
+            const today = startOfDay(new Date());
+
+            if (this.isSelectable(today)) {
+                this.selectDate(today);
+            } else {
+                this.viewDate = today;
+                this.render();
+            }
+
+            return this;
+        }
+
+        value(value) {
+            if (value === undefined) {
+                return dateToIso(this.selectedDate);
+            }
+
+            if (value === null || value === "") {
+                return this.clear();
+            }
+
+            const date = isString(value) ? isoToDate(value) : value;
+
+            if (date && this.isSelectable(date)) {
+                return this.selectDate(date);
+            }
+
+            return this;
+        }
+
+        setMin(value) {
+            this.runtimeMinDate = value ? isoToDate(value) || cloneDate(value) : null;
+            this.enforceBounds();
+            this.render();
+
+            return this;
+        }
+
+        setMax(value) {
+            this.runtimeMaxDate = value ? isoToDate(value) || cloneDate(value) : null;
+            this.enforceBounds();
+            this.render();
+
+            return this;
+        }
+
+        enforceBounds() {
+            if (this.selectedDate && !this.isSelectable(this.selectedDate)) {
+                this.clear(true);
+            }
+        }
+
+        getRangePairInstance() {
+            if (!this.options.rangePair) {
+                return null;
+            }
+
+            const pairInput = document.querySelector(this.options.rangePair);
+
+            if (!pairInput) {
+                return null;
+            }
+
+            if (!pairInput[COMPONENT_PROPERTY] && pairInput.classList.contains("bootstrap-pickadate")) {
+                new bsPickadate(pairInput);
+            }
+
+            return pairInput[COMPONENT_PROPERTY] || null;
+        }
+
+        syncRangePair() {
+            const pair = this.getRangePairInstance();
+
+            if (!pair) {
+                return;
+            }
+
+            const role = String(this.options.rangeRole || "").toLowerCase();
+            const value = dateToIso(this.selectedDate);
+
+            if (role === "start") {
+                pair.setMin(value || null);
+
+                if (this.selectedDate && pair.selectedDate && compareDates(pair.selectedDate, this.selectedDate) < 0) {
+                    pair.clear(true);
+                }
+            }
+
+            if (role === "end") {
+                pair.setMax(value || null);
+
+                if (this.selectedDate && pair.selectedDate && compareDates(pair.selectedDate, this.selectedDate) > 0) {
+                    pair.clear(true);
+                }
+            }
+        }
+
+        refreshLocale(locale) {
+            this.localeCode = this.resolveLocaleCode(locale || this.options.locale, this.options.defaultLocale);
+            this.locale = getLocale(this.localeCode, this.options.defaultLocale);
+            this.syncInput();
+            this.render();
+
+            return this;
+        }
+
+        refresh() {
+            this.options = mergeOptions(this.options, this.readDataOptions());
+            this.locale = getLocale(this.resolveLocaleCode(this.options.locale, this.options.defaultLocale), this.options.defaultLocale);
+            this.render();
+
+            return this;
+        }
+
+        destroy() {
+            this.close();
+            this.destroyed = true;
+            this.input.removeEventListener("focus", this.bound.focus);
+            this.input.removeEventListener("click", this.bound.click);
+            this.input.removeEventListener("change", this.bound.change);
+            this.input.removeEventListener("keydown", this.bound.keydown);
+
+            Object.keys(this.bound).forEach(function(key) {
+                const binding = this.bound[key];
+
+                if (binding && binding.element && binding.type && binding.handler) {
+                    binding.element.removeEventListener(binding.type, binding.handler);
+                }
+            }.bind(this));
+
+            if (this.dropdown && this.dropdown.parentNode) {
+                this.dropdown.parentNode.removeChild(this.dropdown);
+            }
+
+            this.unregister();
+            return this.input;
+        }
+
+        static registerLocale(locale, settings) {
+            const canonical = canonicalLocale(locale);
+
+            if (!canonical || !settings) {
+                return;
+            }
+
+            const merged = mergeOptions(defaultEnglishLocale, settings, {
+                code: canonical
+            });
+
+            window.bootstrapPickadateLocales[canonical] = merged;
+
+            const base = baseLocale(canonical);
+
+            if (base && !window.bootstrapPickadateLocales[base]) {
+                window.bootstrapPickadateLocales[base] = merged;
+            }
+        }
+
+        static hasLocale(locale) {
+            const candidates = localeCandidates(locale, bsPickadate.defaultLocale);
+
+            for (let index = 0; index < candidates.length; index++) {
+                if (window.bootstrapPickadateLocales[candidates[index]]) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        static getLocale(locale, defaultLocale) {
+            return getLocale(locale, defaultLocale);
+        }
+
+        static localeCandidates(locale, defaultLocale) {
+            return localeCandidates(locale, defaultLocale);
+        }
+
+        static setDefaultLocale(locale) {
+            bsPickadate.defaultLocale = canonicalLocale(locale) || DEFAULT_LOCALE;
+        }
+
+        static refreshAll(locale) {
+            Object.keys(window.FORM.pickadate || {}).forEach(function(key) {
+                const instance = window.FORM.pickadate[key];
+
+                if (instance && typeof instance.refreshLocale === "function") {
+                    instance.refreshLocale(locale || "current");
+                }
+            });
+        }
+
+        static initialise(selector, options) {
+            const elements = document.querySelectorAll(selector || "input.bootstrap-pickadate");
+            const instances = [];
+
+            Array.prototype.forEach.call(elements, function(element) {
+                if (!element[COMPONENT_PROPERTY]) {
+                    instances.push(new bsPickadate(element, options || {}));
+                } else {
+                    instances.push(element[COMPONENT_PROPERTY]);
+                }
+            });
+
+            return instances;
+        }
+    }
+
+    bsPickadate.defaultLocale = DEFAULT_LOCALE;
+    bsPickadate.version = "5.3.0-alpha.1";
+
+    function initialiseInput(input) {
+        if (!input || input[COMPONENT_PROPERTY]) {
+            return;
+        }
+
+        new bsPickadate(input);
+    }
+
+    function initialiseDocument() {
+        const inputs = document.querySelectorAll("input.bootstrap-pickadate");
+
+        Array.prototype.forEach.call(inputs, initialiseInput);
+    }
+
+    document.addEventListener("DOMContentLoaded", initialiseDocument);
+    document.addEventListener("animationstart", function(event) {
+        if (event.animationName === INSERTED_ANIMATION && event.target && event.target.matches("input.bootstrap-pickadate")) {
+            initialiseInput(event.target);
+        }
+    });
+
+    window.bsPickadate = bsPickadate;
+})(window, document);
+
+// END OF FILE

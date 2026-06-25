@@ -1,0 +1,54 @@
+@keyframes bootstrapPickadateInserted {
+from {
+outline-color: transparent;
+}
+to {
+outline-color: transparent;
+}
+}
+input.bootstrap-pickadate {
+animation-duration: 0.001s;
+animation-name: bootstrapPickadateInserted;
+}
+.bootstrap-pickadate-dropdown {
+display: none;
+max-width: calc(100vw - 1rem);
+position: absolute;
+z-index: 1080;
+}
+.bootstrap-pickadate-dropdown.show {
+display: block;
+}
+.bootstrap-pickadate-calendar {
+min-width: 18.75rem;
+}
+.bootstrap-pickadate-header .bootstrap-pickadate-month {
+min-width: 0;
+}
+.bootstrap-pickadate-header .bootstrap-pickadate-year {
+max-width: 6rem;
+}
+.bootstrap-pickadate-nav {
+flex: 0 0 auto;
+}
+.bootstrap-pickadate-table {
+table-layout: fixed;
+}
+.bootstrap-pickadate-table th,
+.bootstrap-pickadate-table td {
+border-bottom: 0;
+width: 14.285714%;
+}
+.bootstrap-pickadate-day {
+height: 2.25rem;
+line-height: 1;
+margin: 0.0625rem;
+padding: 0;
+width: 2.25rem;
+}
+.bootstrap-pickadate-other-month {
+opacity: 0.55;
+}
+.bootstrap-pickadate-footer .btn {
+white-space: nowrap;
+}
