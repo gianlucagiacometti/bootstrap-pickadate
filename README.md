@@ -161,6 +161,34 @@ picker.setMax("2026-12-31");
 picker.destroy();
 ```
 
+## Compact localised interval formatting
+
+Bootstrap Pickadate can format a date interval without creating a picker instance:
+
+```js
+bsPickadate.formatInterval("2026-09-12", "2026-09-13", {
+    locale: "en",
+    dateStyle: "long"
+});
+// September 12–13, 2026
+
+bsPickadate.formatInterval("2026-09-23", "2026-10-04", {
+    locale: "en",
+    dateStyle: "long"
+});
+// September 23 – October 4, 2026
+```
+
+`locale` defaults to `current`, so the formatter follows `bsPickadate.defaultLocale`. `dateStyle` accepts `full`, `long`, `medium`, or `short` and defaults to `long`.
+
+The formatter uses the browser's locale-aware date-range formatting when available. This lets each language use its own natural interval grammar instead of applying English-specific month/day suppression rules. If native range formatting is unavailable, Bootstrap Pickadate falls back to two localised dates separated by ` – `.
+
+The same formatter is also available from a picker instance and accepts ISO strings or JavaScript `Date` objects:
+
+```js
+picker.formatInterval("2026-09-12", "2026-09-13");
+```
+
 ## Locale handling
 
 Locale files register themselves in:
