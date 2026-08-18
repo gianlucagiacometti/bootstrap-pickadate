@@ -375,6 +375,115 @@
         });
     }
 
+    function normaliseDateValue(value) {
+        if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            return startOfDay(value);
+        }
+
+        if (isString(value)) {
+            return isoToDate(String(value).trim());
+        }
+
+        return null;
+    }
+
+    function normaliseDateStyle(value) {
+        const style = String(value || "long").toLowerCase();
+
+        if (["full", "long", "medium", "short"].indexOf(style) !== -1) {
+            return style;
+        }
+
+        return "long";
+    }
+
+    function resolveIntlLocale(locale, defaultLocale) {
+        if (typeof Intl === "undefined" || typeof Intl.DateTimeFormat !== "function") {
+            return "";
+        }
+
+        const selected = !locale || locale === "current"
+            ? bsPickadate.defaultLocale || defaultLocale || DEFAULT_LOCALE
+            : locale;
+        const candidates = localeCandidates(selected, defaultLocale).map(function(candidate) {
+            return candidate.replace(/_/g, "-");
+        });
+
+        for (let index = 0; index < candidates.length; index++) {
+            try {
+                new Intl.DateTimeFormat(candidates[index]);
+                return candidates[index];
+            } catch (error) {
+                continue;
+            }
+        }
+
+        return "";
+    }
+
+    function formatInterval(start, end, options) {
+        const settings = mergeOptions({
+            locale: "current",
+            defaultLocale: DEFAULT_LOCALE,
+            dateStyle: "long",
+            separator: " – "
+        }, options || {});
+        let startDate = normaliseDateValue(start);
+        let endDate = normaliseDateValue(end);
+
+        if (!startDate && !endDate) {
+            return "";
+        }
+
+        if (!startDate) {
+            startDate = endDate;
+        }
+
+        if (!endDate) {
+            endDate = startDate;
+        }
+
+        if (compareDates(endDate, startDate) < 0) {
+            const temporary = startDate;
+            startDate = endDate;
+            endDate = temporary;
+        }
+
+        const intlLocale = resolveIntlLocale(settings.locale, settings.defaultLocale);
+
+        if (intlLocale) {
+            try {
+                const formatter = new Intl.DateTimeFormat(intlLocale, {
+                    dateStyle: normaliseDateStyle(settings.dateStyle)
+                });
+
+                if (typeof formatter.formatRange === "function") {
+                    return formatter.formatRange(startDate, endDate);
+                }
+
+                if (compareDates(startDate, endDate) === 0) {
+                    return formatter.format(startDate);
+                }
+
+                return formatter.format(startDate) + settings.separator + formatter.format(endDate);
+            } catch (error) {
+                // Fall through to the component locale formatter.
+            }
+        }
+
+        const selectedLocale = !settings.locale || settings.locale === "current"
+            ? bsPickadate.defaultLocale || settings.defaultLocale || DEFAULT_LOCALE
+            : settings.locale;
+        const locale = getLocale(selectedLocale, settings.defaultLocale);
+        const format = locale.longFormat || locale.format || "dd/mm/yyyy";
+
+        if (compareDates(startDate, endDate) === 0) {
+            return formatDate(startDate, locale, format);
+        }
+
+        return formatDate(startDate, locale, format) + settings.separator + formatDate(endDate, locale, format);
+    }
+
     function formatMonthSelectLabel(index, locale) {
         const usedLocale = locale || window.bootstrapPickadateLocales.en;
         const format = usedLocale.monthShortFormat || "mmm";
@@ -1687,6 +1796,13 @@
             return this;
         }
 
+        formatInterval(start, end, options) {
+            return formatInterval(start, end, mergeOptions({
+                locale: this.localeCode,
+                defaultLocale: this.options.defaultLocale
+            }, options || {}));
+        }
+
 
         setMin(value) {
             this.runtimeMinDate = value ? isoToDate(value) || cloneDate(value) : null;
@@ -1858,6 +1974,10 @@
             return localeCandidates(locale, defaultLocale);
         }
 
+        static formatInterval(start, end, options) {
+            return formatInterval(start, end, options);
+        }
+
         static setDefaultLocale(locale) {
             bsPickadate.defaultLocale = canonicalLocale(locale) || DEFAULT_LOCALE;
         }
@@ -1889,7 +2009,7 @@
     }
 
     bsPickadate.defaultLocale = DEFAULT_LOCALE;
-    bsPickadate.version = "5.3.0-alpha.3";
+    bsPickadate.version = "5.3.1";
 
     function initialiseInput(input) {
         if (!input || input[COMPONENT_PROPERTY]) {
