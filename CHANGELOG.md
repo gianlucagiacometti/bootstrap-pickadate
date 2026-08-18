@@ -1,6 +1,29 @@
 Bootstrap Pickadate
 ===================
 
+
+Version 5.3.1 (2026-08-19, Bootstrap 5.3.x)
+===========================================
+
+### Added
+
+- Added `bsPickadate.formatInterval(start, end, options)` for compact, localised date-range presentation without creating a picker instance.
+- Added the equivalent `picker.formatInterval(start, end, options)` instance method.
+- Added support for ISO `yyyy-mm-dd` strings and JavaScript `Date` objects as formatter input.
+- Added `dateStyle` support with `full`, `long`, `medium`, and `short` values.
+
+### Changed
+
+- Compact interval presentation uses the browser's locale-aware `Intl.DateTimeFormat.formatRange()` when available, so repeated month/year information is omitted according to the active language rather than English-specific rules.
+- The formatter normalises reversed intervals before presentation.
+- Updated the component version to `5.3.1`.
+
+### Notes
+
+- Existing picker selection and same-input interval display behaviour are unchanged. Compact interval formatting is an opt-in presentation API.
+- Browsers without native range formatting fall back to two localised dates separated by ` – `.
+
+
 Version 5.3.0 (2026-06-25, Bootstrap 5.3.x)
 ===========================================
 
